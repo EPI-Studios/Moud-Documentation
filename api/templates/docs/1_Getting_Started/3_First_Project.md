@@ -1,4 +1,4 @@
-# 3. Getting Started: Your First Project
+# Your First Project
 
 Now that the Moud CLI is installed, let's create and run your first Moud project.
 

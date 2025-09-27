@@ -1,4 +1,4 @@
-# 2. Getting Started: Project Configuration
+# Project Configuration
 
 Every Moud project is configured through a standa file from the Node.js ecosystem: `package.json`. This file contains essential information about your game, its dependencies, and scripts to manage it.
 
