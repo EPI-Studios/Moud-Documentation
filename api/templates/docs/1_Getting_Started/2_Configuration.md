@@ -22,7 +22,7 @@ When you create a new project with `moud create`, a `package.json` file is autom
     "typescript": "^5.0.0"
   }
 }
- ``` 
+``` 
 
 ### Key Fields
 
@@ -30,9 +30,7 @@ When you create a new project with `moud create`, a `package.json` file is autom
     These fields describe your project. The name will be used when packaging your project for distribution.
     
 -   **"moud:main"**  
-    ``` hint warning "Essential Field"  
     This is a Moud-specific field. It tells the Moud Engine which file is the entry point for your **server-side** game logic. By default, this is src/main.ts.  
-    ```
     
 -   **"scripts"**  
     
@@ -49,6 +47,6 @@ When you create a new project with `moud create`, a `package.json` file is autom
     -   typescript: The TypeScript compiler.
         
 
-```hint warning "The Importance of the SDK"  
+```hint warning The Importance of the SDK
 The @epi-studio/moud-sdk package contains no executable logic, but it is indispensable for development. It enables your code editor (like VS Code) to provide autocompletion, type-checking, and inline documentation for the entire API, including api, Player, Vector3, etc.  
 ```

@@ -40,7 +40,7 @@ npm run dev -- --watch (or moud dev)
 ```
   
 
-```hint tip "Why use -- --watch?"  
+```hint tip Why use -- --watch? 
 In npm, the first -- is used to pass arguments directly to the underlying command (in this case, moud dev). The --watch (or -w) flag enables hot-reloading. Every time you save a file in the src/, client/, or assets/ folders, the CLI will re-transpile and restart the server for you.  
 ```
 

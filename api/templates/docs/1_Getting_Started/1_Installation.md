@@ -14,7 +14,7 @@ You can check your Node.js version with the following command:
 node -v
 ```
 
-```hint info success
+```hint info Wait.. what about java?
 No Need to Install Java Manually! 
 The Moud CLI is designed to be as simple as possible. It will detect if you have a compatible version of Java (JDK 21) and, if not, it will offer to automatically download and install a local version used only by Moud. This means you don't have to perform any manual Java configuration!
 ```
