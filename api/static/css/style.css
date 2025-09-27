@@ -1,11 +1,14 @@
 :root {
     --bg-color: #ffffff;
-    --text-color: #333;
-    --border-color: #ddd;
-    --bg-secondary: #f6f8fa;
-    --link-color: #0366d6;
-    --link-bg: #f1f8ff;
-    --accent-color: #e6f0ff;
+    --bg-sidebar: #F9FAFB;
+    --text-primary: #1F2937;
+    --text-secondary: #6B7280;
+    --border-color: #E5E7EB;
+    --accent-color: #4F46E5;
+    --accent-text: #ffffff;
+    --link-color: #3B82F6;
+    --hint-info-bg: #EFF6FF;
+    --hint-info-border: #BFDBFE;
 }
 
 [data-theme="dark"] {
@@ -19,21 +22,40 @@
 }
 
 body {
-    font-family: Arial, sans-serif;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-    line-height: 1.6;
-    color: var(--text-color);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     background-color: var(--bg-color);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+    color: var(--text-primary);
+    line-height: 1.6;
+    margin: 0;
 }
 
 h1, h2, h3 {
-    color: var(--text-color);
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-top: 1.5em;
+    margin-bottom: 0.8em;
 }
+
+
+h1 { font-size: 2.25rem; }
+h2 { font-size: 1.875rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+h3 { font-size: 1.5rem; }
+
+
+p {
+    margin-bottom: 1em;
+}
+
+
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+
 
 h1 {
     border-bottom: 1px solid var(--border-color);
@@ -41,26 +63,26 @@ h1 {
 }
 
 code {
-    background-color: var(--bg-secondary);
-    padding: 2px 4px;
-    border-radius: 0;
+    background-color: #F3F4F6;
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
+    border-radius: 6px;
     font-family: monospace;
 }
 
-pre {
-    background-color: var(--bg-secondary);
-    padding: 16px;
-    border-radius: 0;
-    overflow: auto;
-    border: 1px solid var(--border-color);
-    margin: 15px 0;
-    position: relative;
-}
 
+pre {
+    background-color: #F3F4F6;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 0.9em;
+}
 pre code {
-    background-color: transparent;
+    background: none;
     padding: 0;
-    border-radius: 0;
 }
 
 ul {
@@ -136,20 +158,17 @@ a:hover {
 }
 
 table {
-    border-collapse: collapse;
     width: 100%;
-    margin: 20px 0;
+    border-collapse: collapse;
+    margin: 1.5em 0;
 }
-
 th, td {
     border: 1px solid var(--border-color);
-    padding: 8px 12px;
-    text-align: left;
+    padding: 0.75rem 1rem;
 }
-
 th {
-    background-color: var(--bg-secondary);
-    font-weight: bold;
+    background-color: var(--bg-sidebar);
+    font-weight: 600;
 }
 
 tr:nth-child(even) {
@@ -364,6 +383,11 @@ img {
     color: var(--text-color);
     border-bottom: 2px solid var(--border-color);
     padding-bottom: 5px;
+}
+
+
+.docs-container {
+    display: flex;
 }
 
 .doc-list, #recent-list {

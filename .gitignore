@@ -5,3 +5,5 @@ __pycache__/
 .env
 *.db
 github_cache.json
+e.py
+output.txt

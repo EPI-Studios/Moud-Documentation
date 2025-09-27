@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GITHUB_REPO = "Meekiavelique/mdoc"
+GITHUB_REPO = "EPI-Studios/Moud-Documentation"
 DOCS_DIR = os.path.join(os.path.dirname(__file__), 'templates', 'docs')
 
 DATABASE_CONFIG = {
@@ -17,10 +17,10 @@ DATABASE_CONFIG = {
 }
 
 DISCORD_WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL', '')
-
 SITE_CONFIG = {
-    'title': os.getenv('SITE_TITLE', 'Mdoc'),
-    'description': os.getenv('SITE_DESCRIPTION', 'Documentation System'),
-    'base_url': os.getenv('SITE_BASE_URL', 'https://docs.meek-dev.com'),
+    'title': os.getenv('SITE_TITLE', 'Moud Documentation'),
+    'description': os.getenv('SITE_DESCRIPTION', 'The official documentation for the Moud Engine'),
+    'base_url': os.getenv('SITE_BASE_URL', 'https://docs.epitygmata.fr'), 
     'github_edit_base': f'https://github.com/{GITHUB_REPO}/edit/main/api/templates/docs'
 }
+

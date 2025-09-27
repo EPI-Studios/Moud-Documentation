@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, abort, request, Response, jsonify, redirect
+from flask import Blueprint, render_template, abort, request, Response, jsonify, redirect, url_for
 from markupsafe import Markup
 import urllib.parse
 import os
@@ -64,16 +64,14 @@ def api_get_doc(doc_name):
                     content = f.read()
 
                 contributors = get_document_contributors(doc_name)
-                view_count = analytics_db.get_view_count(doc_name)
 
-                logger.info(f"Successfully retrieved document: {doc_name}, views: {view_count}")
+            
 
                 return jsonify({
                     'name': doc_name,
                     'title': extract_title_from_markdown(content),
                     'content': content,
-                    'contributors': contributors,
-                    'view_count': view_count
+                    'contributors': contributors
                 })
             except Exception as e:
                 logger.error(f"Error reading file {md_path}: {e}")
@@ -118,6 +116,7 @@ def serve_template(template_name):
 
         template_name = urllib.parse.unquote(template_name)
         template_name = sanitize_filename(template_name)
+        documents_by_category = get_documents_by_category()
 
         logger.info(f"Serving template: {template_name}")
 
@@ -142,17 +141,6 @@ def serve_template(template_name):
                 return redirect(f"/{first_subdoc['filename']}")
             else:
                 abort(404)
-
-        try:
-            client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', ''))
-            ip_hash = hashlib.sha256(client_ip.encode()).hexdigest()[:16] if client_ip else None
-            user_agent = request.headers.get('User-Agent', '')
-
-            view_count = analytics_db.record_view(template_name, ip_hash, user_agent)
-            logger.info(f"Recorded view for {template_name}: {view_count}")
-        except Exception as e:
-            logger.warning(f"Failed to record view for {template_name}: {e}")
-            view_count = 0
 
         git_history = get_template_history(template_name)
         contributors = get_document_contributors(template_name)
@@ -198,12 +186,12 @@ def serve_template(template_name):
                     versions=git_history,
                     contributors=contributors,
                     author=author,
-                    view_count=view_count,
                     recently_updated=recently_updated,
                     is_print=is_print,
                     is_version=is_version,
                     github_repo=GITHUB_REPO,
                     github_edit_url=f"{SITE_CONFIG['github_edit_base']}/{template_name}.md",
+                    documents_by_category=documents_by_category, # AJOUTE CETTE LIGNE
                     subdocuments=subdocuments,
                     prev_doc=prev_doc,
                     next_doc=next_doc,
@@ -256,7 +244,6 @@ def view_version(template_name, commit_hash):
         git_history = get_template_history(template_name)
         contributors = get_document_contributors(template_name)
         author = get_document_author(template_name)
-        view_count = analytics_db.get_view_count(template_name)
 
         template = 'print.html' if is_print else 'markdown_base.html'
 
@@ -286,7 +273,6 @@ def view_version(template_name, commit_hash):
             versions=git_history,
             contributors=contributors,
             author=author,
-            view_count=view_count,
             is_print=is_print,
             is_version=is_version,
             current_hash=commit_hash,
@@ -298,6 +284,25 @@ def view_version(template_name, commit_hash):
     except Exception as e:
         logger.error(f"Error viewing version {template_name} at {commit_hash}: {e}")
         abort(500)
+
+
+@docs_bp.route('/docs')
+def docs_redirect():
+    try:
+        all_docs = get_all_documents()
+        real_docs = [doc for doc in all_docs if not doc.get('is_virtual', False)]
+        sorted_docs = sorted(real_docs, key=lambda d: (d.get('order', 999), d['filename']))
+        
+        if sorted_docs:
+            first_doc_filename = sorted_docs[0]['filename']
+            return redirect(url_for('docs.serve_template', template_name=first_doc_filename))
+        else:
+            return redirect(url_for('docs.index'))
+            
+    except Exception as e:
+        logger.error(f"Error in /docs redirect: {e}")
+        abort(500)
+
 
 @docs_bp.errorhandler(404)
 def page_not_found(e):
