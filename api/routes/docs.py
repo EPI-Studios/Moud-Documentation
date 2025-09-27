@@ -7,13 +7,30 @@ import logging
 from api.utils.markdown import convert_markdown_to_html, remove_first_h1, extract_title_from_markdown, extract_description_from_markdown
 from api.utils.github_utils import get_file_at_commit, get_template_history, get_document_contributors, get_document_author, is_recently_updated
 from api.utils.sanitization import sanitize_filename, is_safe_path
-from api.utils.documents import get_all_documents, get_documents_by_category, get_subdocuments, get_first_subdocument, get_sibling_navigation
+from api.utils.documents import get_all_documents, get_documents_by_section, get_subdocuments, get_first_subdocument, get_sibling_navigation
 from api.utils.analytics import analytics_db
 from api.utils.sitemap_generator import generate_sitemap
 from api.config import SITE_CONFIG, GITHUB_REPO
 
 docs_bp = Blueprint('docs', __name__)
 logger = logging.getLogger(__name__)
+
+def generate_breadcrumbs(template_name):
+    breadcrumbs = []
+    if '/' in template_name:
+        parts = template_name.split('/')
+        for i, part in enumerate(parts):
+            path = '/'.join(parts[:i+1])
+            if '_' in part and part.split('_')[0].isdigit():
+                name = '_'.join(part.split('_')[1:]).replace('_', ' ').title()
+            else:
+                name = part.replace('_', ' ').title()
+            breadcrumbs.append({
+                'name': name, 
+                'path': path, 
+                'is_current': i == len(parts) - 1
+            })
+    return breadcrumbs
 
 @docs_bp.route('/sitemap.xml')
 def sitemap():
@@ -38,7 +55,6 @@ def api_list_docs():
 @docs_bp.route('/api/docs/<path:doc_name>')
 def api_get_doc(doc_name):
     try:
-
         doc_name = urllib.parse.unquote(doc_name)
         doc_name = sanitize_filename(doc_name)
 
@@ -64,8 +80,6 @@ def api_get_doc(doc_name):
                     content = f.read()
 
                 contributors = get_document_contributors(doc_name)
-
-            
 
                 return jsonify({
                     'name': doc_name,
@@ -96,12 +110,12 @@ def api_popular_docs():
 @docs_bp.route('/')
 def index():
     try:
-        documents_by_category = get_documents_by_category()
+        documents_by_section = get_documents_by_section()
         recently_updated = [doc for doc in get_all_documents() if doc.get('recently_updated')]
         popular_docs = analytics_db.get_popular_documents(5)
 
         return render_template('index.html', 
-                             documents_by_category=documents_by_category,
+                             documents_by_category=documents_by_section,
                              recently_updated=recently_updated,
                              popular_docs=popular_docs)
     except Exception as e:
@@ -113,10 +127,9 @@ def index():
 @docs_bp.route('/<path:template_name>')
 def serve_template(template_name):
     try:
-
         template_name = urllib.parse.unquote(template_name)
         template_name = sanitize_filename(template_name)
-        documents_by_category = get_documents_by_category()
+        documents_by_category = get_documents_by_section()
 
         logger.info(f"Serving template: {template_name}")
 
@@ -166,16 +179,7 @@ def serve_template(template_name):
 
                 template = 'print.html' if is_print else 'markdown_base.html'
 
-                breadcrumbs = []
-                if '/' in template_name:
-                    parts = template_name.split('/')
-                    for i, part in enumerate(parts):
-                        path = '/'.join(parts[:i+1])
-                        name = part.replace('_', ' ').title()
-                        if i == len(parts) - 1:
-                            breadcrumbs.append({'name': name, 'path': path, 'is_current': True})
-                        else:
-                            breadcrumbs.append({'name': name, 'path': path, 'is_current': False})
+                breadcrumbs = generate_breadcrumbs(template_name)
 
                 response = render_template(
                     template, 
@@ -191,7 +195,7 @@ def serve_template(template_name):
                     is_version=is_version,
                     github_repo=GITHUB_REPO,
                     github_edit_url=f"{SITE_CONFIG['github_edit_base']}/{template_name}.md",
-                    documents_by_category=documents_by_category, # AJOUTE CETTE LIGNE
+                    documents_by_category=documents_by_category,
                     subdocuments=subdocuments,
                     prev_doc=prev_doc,
                     next_doc=next_doc,
@@ -255,13 +259,7 @@ def view_version(template_name, commit_hash):
 
         version_info = f"Version: {current_version['short_hash'] if current_version else commit_hash[:7]}"
 
-        breadcrumbs = []
-        if '/' in template_name:
-            parts = template_name.split('/')
-            for i, part in enumerate(parts):
-                path = '/'.join(parts[:i+1])
-                name = part.replace('_', ' ').title()
-                breadcrumbs.append({'name': name, 'path': path})
+        breadcrumbs = generate_breadcrumbs(template_name)
 
         return render_template(
             template, 
@@ -285,13 +283,12 @@ def view_version(template_name, commit_hash):
         logger.error(f"Error viewing version {template_name} at {commit_hash}: {e}")
         abort(500)
 
-
 @docs_bp.route('/docs')
 def docs_redirect():
     try:
         all_docs = get_all_documents()
         real_docs = [doc for doc in all_docs if not doc.get('is_virtual', False)]
-        sorted_docs = sorted(real_docs, key=lambda d: (d.get('order', 999), d['filename']))
+        sorted_docs = sorted(real_docs, key=lambda d: (d.get('section_order', 999), d.get('order', 999), d['filename']))
         
         if sorted_docs:
             first_doc_filename = sorted_docs[0]['filename']
@@ -302,7 +299,6 @@ def docs_redirect():
     except Exception as e:
         logger.error(f"Error in /docs redirect: {e}")
         abort(500)
-
 
 @docs_bp.errorhandler(404)
 def page_not_found(e):

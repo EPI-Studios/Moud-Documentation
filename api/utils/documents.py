@@ -1,5 +1,6 @@
 import os
 import functools
+import re
 from api.utils.github_utils import is_recently_updated
 
 @functools.lru_cache(maxsize=128)
@@ -20,21 +21,26 @@ def get_all_documents():
                     if item.endswith('.html') and item not in ['index.html', 'markdown_base.html', 'error.html', 'print.html']:
                         filename = item.replace('.html', '')
                         full_path = f"{parent_path}/{filename}" if parent_path else filename
-                        category = "Documentation"
-                        documents.append({
-                            'filename': full_path,
-                            'title': filename.replace('_', ' ').title(),
-                            'category': category,
-                            'is_subdoc': bool(parent_path),
-                            'parent': parent_path if parent_path else None,
-                            'recently_updated': is_recently_updated(full_path),
-                            'order': get_order_from_filename(filename)
-                        })
+                        title = extract_clean_title(filename)
+                        section = extract_section_from_path(parent_path) if parent_path else "Documentation"
+                        
+                        if section and section not in ["Test", "Example"]:
+                            documents.append({
+                                'filename': full_path,
+                                'title': title,
+                                'section': section,
+                                'category': section,
+                                'is_subdoc': bool(parent_path),
+                                'parent': parent_path if parent_path else None,
+                                'recently_updated': is_recently_updated(full_path),
+                                'order': get_order_from_filename(filename),
+                                'section_order': get_section_order_from_path(parent_path) if parent_path else 999
+                            })
                     elif item.endswith('.md'):
                         filename = item.replace('.md', '')
                         full_path = f"{parent_path}/{filename}" if parent_path else filename
-                        title = filename.replace('_', ' ').title()
-                        category = "Documentation"
+                        title = extract_clean_title(filename)
+                        section = extract_section_from_path(parent_path) if parent_path else "Documentation"
                         
                         try:
                             with open(item_path, 'r', encoding='utf-8') as file:
@@ -44,22 +50,25 @@ def get_all_documents():
                         except Exception:
                             pass
                         
-                        documents.append({
-                            'filename': full_path,
-                            'title': title,
-                            'category': category,
-                            'is_subdoc': bool(parent_path),
-                            'parent': parent_path if parent_path else None,
-                            'recently_updated': is_recently_updated(full_path),
-                            'order': get_order_from_filename(filename)
-                        })
+                        if section and section not in ["Meekleboss", "Test", "Example"]:
+                            documents.append({
+                                'filename': full_path,
+                                'title': title,
+                                'section': section,
+                                'category': section,
+                                'is_subdoc': bool(parent_path),
+                                'parent': parent_path if parent_path else None,
+                                'recently_updated': is_recently_updated(full_path),
+                                'order': get_order_from_filename(filename),
+                                'section_order': get_section_order_from_path(parent_path) if parent_path else 999
+                            })
                 
                 elif os.path.isdir(item_path):
                     new_parent = f"{parent_path}/{item}" if parent_path else item
                     scan_directory(item_path, new_parent)
         
         scan_directory(docs_dir)
-     
+        
         folder_names = set()
         for doc in documents:
             if doc['is_subdoc'] and doc['parent']:
@@ -69,23 +78,60 @@ def get_all_documents():
         
         for folder_name in folder_names:
             if folder_name not in existing_parents:
-                category = "Documentation"
-                documents.append({
-                    'filename': folder_name,
-                    'title': folder_name.split('/')[-1].replace('_', ' ').title(),
-                    'category': category,
-                    'is_subdoc': False,
-                    'parent': None,
-                    'recently_updated': False,
-                    'order': 999,
-                    'is_virtual': True
-                })
+                section = extract_section_from_path(folder_name)
+                if section and section not in ["Meekleboss", "Test", "Example"]:
+                    documents.append({
+                        'filename': folder_name,
+                        'title': extract_clean_title(folder_name.split('/')[-1]),
+                        'section': section,
+                        'category': section,
+                        'is_subdoc': False,
+                        'parent': None,
+                        'recently_updated': False,
+                        'order': 999,
+                        'section_order': get_section_order_from_path(folder_name),
+                        'is_virtual': True
+                    })
         
-        return sorted(documents, key=lambda x: (x['category'], x['title']))
+        return sorted(documents, key=lambda x: (x['section_order'], x['section'], x['order'], x['title']))
         
     except Exception as e:
         print(f"Error getting documents: {str(e)}")
         return []
+
+def extract_clean_title(filename):
+    parts = filename.split('_', 1)
+    if len(parts) > 1 and parts[0].isdigit():
+        return parts[1].replace('_', ' ').title()
+    return filename.replace('_', ' ').title()
+
+def extract_section_from_path(path):
+    if not path:
+        return "Documentation"
+    
+    parts = path.split('/')
+    section_part = parts[0]
+    
+    section_parts = section_part.split('_', 1)
+    if len(section_parts) > 1 and section_parts[0].isdigit():
+        return section_parts[1].replace('_', ' ').title()
+    
+    if section_part.lower() in ['meekleboss', 'misc', 'other']:
+        return None
+    
+    return section_part.replace('_', ' ').title()
+
+def get_section_order_from_path(path):
+    if not path:
+        return 999
+    
+    parts = path.split('/')
+    section_part = parts[0]
+    
+    section_parts = section_part.split('_', 1)
+    if len(section_parts) > 1 and section_parts[0].isdigit():
+        return int(section_parts[0])
+    return 999
 
 def get_order_from_filename(filename):
     parts = filename.split('_', 1)
@@ -93,31 +139,34 @@ def get_order_from_filename(filename):
         return int(parts[0])
     return 999
 
-def get_categories():
+def get_sections():
     documents = get_all_documents()
-    categories = set()
+    sections = {}
     
     for doc in documents:
-        if doc.get('category'):
-            categories.add(doc['category'])
+        section = doc.get('section', 'Documentation')
+        if section not in sections:
+            sections[section] = {
+                'name': section,
+                'order': doc.get('section_order', 999),
+                'documents': []
+            }
+        sections[section]['documents'].append(doc)
     
-    return sorted(list(categories))
+    return dict(sorted(sections.items(), key=lambda x: x[1]['order']))
+
+def get_documents_by_section():
+    return get_sections()
 
 def get_documents_by_category():
-    documents = get_all_documents()
-    categorized = {}
-    
-    for doc in documents:
-        category = doc.get('category', 'Documentation') 
-        if category not in categorized:
-            categorized[category] = []
-        categorized[category].append(doc)
-    
-    return categorized
+    return get_sections()
 
 def get_subdocuments(parent_path):
     documents = get_all_documents()
-    return [doc for doc in documents if doc.get('parent') == parent_path]
+    return sorted(
+        [doc for doc in documents if doc.get('parent') == parent_path],
+        key=lambda x: x['order']
+    )
 
 def get_first_subdocument(parent_path):
     subdocs = get_subdocuments(parent_path)

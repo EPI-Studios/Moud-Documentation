@@ -21,21 +21,26 @@
                 <a href="/" class="sidebar-home-link">← Home</a>
             </div>
             <nav class="sidebar-nav">
-                {% for category, docs in documents_by_category.items() %}
-                    {% for doc in docs|sort(attribute='order') %}
-                        {% if not doc.is_subdoc %}
-                            <div class="nav-category-title">{{ doc.title }}</div>
-                            <ul class="nav-category-list">
-                                {% for subdoc in get_subdocuments(doc.filename)|sort(attribute='order') %}
-                                <li>
-                                    <a href="/{{ subdoc.filename }}" class="sidebar-link {% if subdoc.filename == doc_name %}active{% endif %}">
-                                        {{ subdoc.title }}
-                                    </a>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        {% endif %}
-                    {% endfor %}
+                {% for section_name, section_data in documents_by_category.items() %}
+                    <div class="nav-section">
+                        <div class="nav-section-title">{{ section_name }}</div>
+                        
+                        {% for doc in section_data.documents|sort(attribute='order') %}
+                            {% if not doc.is_subdoc %}
+                                <div class="nav-category">
+                                    <ul class="nav-category-list">
+                                        {% for subdoc in get_subdocuments(doc.filename)|sort(attribute='order') %}
+                                        <li>
+                                            <a href="/{{ subdoc.filename }}" class="sidebar-link {% if subdoc.filename == doc_name %}active{% endif %}">
+                                                {{ subdoc.title }}
+                                            </a>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
                 {% endfor %}
             </nav>
         </aside>
