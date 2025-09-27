@@ -43,12 +43,6 @@ ALLOWED_PROTOCOLS = ['http', 'https', 'mailto', 'tel', 'ftp', '#']
 MARKDOWN_EXTENSIONS = [
     TableExtension(),
     FencedCodeExtension(),
-    CodeHiliteExtension(linenums=False, css_class="codehilite", guess_lang=False),
-    # GlslExtension(),     
-    # DesmosExtension(),   
-    # MermaidExtension(),  
-    # GeoGebraExtension(), 
-    # P5jsExtension(),     
     VideoExtension(),      
     IframeExtension(),
     HintExtension(),      
