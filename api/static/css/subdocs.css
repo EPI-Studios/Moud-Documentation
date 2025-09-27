@@ -101,8 +101,6 @@
 }
 
 .sidebar-link.active {
-    background-color: var(--accent-color);
-    color: var(--accent-text);
     font-weight: 500;
 }
 

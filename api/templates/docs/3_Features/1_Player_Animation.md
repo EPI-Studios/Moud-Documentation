@@ -49,6 +49,11 @@ api.on('player.chat', (event) => {
 });
 ```
 
+
+![video](https://youtu.be/YFbJkHxcCKk){width=800,height=450,muted}
+
+
+
 ### Model Animations
 
 For PlayerModel objects created through the world API:

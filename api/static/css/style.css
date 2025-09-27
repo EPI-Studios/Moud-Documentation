@@ -72,12 +72,6 @@ code {
 }
 
 
-#doc-content ul > li {
-    display: block;  /* Chaque élément est un bloc sur sa propre ligne */
-    width: 100%;     /* L'élément prend toute la largeur disponible */
-    margin-bottom: 0.75em; /* Ajoute un petit espace vertical entre les points */
-}
-
 pre {
     background-color: #F3F4F6;
     border: 1px solid var(--border-color);
