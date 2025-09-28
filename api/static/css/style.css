@@ -27,6 +27,27 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     margin: 0;
+    background-image:
+        linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+svg.handdrawn-filter {
+    position: absolute;
+    width: 0;
+    height: 0;
+    pointer-events: none;
 }
 
 h1, h2, h3 {
@@ -34,18 +55,16 @@ h1, h2, h3 {
     font-weight: 600;
     margin-top: 1.5em;
     margin-bottom: 0.8em;
+    filter: url(#handdrawnFilter);
 }
-
 
 h1 { font-size: 2.25rem; }
 h2 { font-size: 1.875rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
 h3 { font-size: 1.5rem; }
 
-
 p {
     margin-bottom: 1em;
 }
-
 
 a {
     color: var(--link-color);
@@ -54,8 +73,6 @@ a {
 a:hover {
     text-decoration: underline;
 }
-
-
 
 h1 {
     border-bottom: 1px solid var(--border-color);
@@ -69,8 +86,8 @@ code {
     font-size: 85%;
     border-radius: 6px;
     font-family: monospace;
-}
 
+}
 
 pre {
     background-color: #F3F4F6;
@@ -83,6 +100,7 @@ pre {
 pre code {
     background: none;
     padding: 0;
+    filter: none;
 }
 
 ul {
@@ -121,6 +139,7 @@ a:hover {
     cursor: pointer;
     font-size: 14px;
     z-index: 1000;
+    filter: url(#handdrawnFilter);
 }
 
 .theme-toggle:hover {
@@ -137,6 +156,7 @@ a:hover {
     font-size: 12px;
     color: var(--text-color);
     border-radius: 0;
+    filter: url(#handdrawnFilter);
 }
 
 .search-container {
@@ -195,6 +215,7 @@ blockquote {
     cursor: pointer;
     opacity: 0.7;
     color: var(--text-color);
+    filter: url(#handdrawnFilter);
 }
 
 .copy-button:hover {
@@ -214,6 +235,7 @@ blockquote {
     padding: 5px 10px;
     border-radius: 0;
     border: 1px solid var(--border-color);
+    filter: url(#handdrawnFilter);
 }
 
 .version-toggle:hover {
@@ -228,6 +250,7 @@ blockquote {
     background-color: var(--bg-secondary);
     max-height: 300px;
     overflow-y: auto;
+    filter: url(#handdrawnFilter);
 }
 
 .version-list ul {
@@ -250,6 +273,7 @@ blockquote {
     padding: 5px 10px;
     border-radius: 0;
     border: 1px solid var(--border-color);
+    filter: url(#handdrawnFilter);
 }
 
 .github-edit-btn {
@@ -260,6 +284,7 @@ blockquote {
     padding: 5px 10px;
     border-radius: 0;
     border: 1px solid var(--border-color);
+    filter: url(#handdrawnFilter);
 }
 
 .issue-report-btn {
@@ -270,6 +295,7 @@ blockquote {
     padding: 5px 10px;
     border-radius: 0;
     border: 1px solid var(--border-color);
+    filter: url(#handdrawnFilter);
 }
 
 img {
@@ -288,6 +314,7 @@ img {
     margin: 0;
     border: none;
     border-radius: 0;
+    filter: none;
 }
 
 .version-item {
@@ -323,6 +350,7 @@ img {
     font-size: 0.8em;
     margin-left: 8px;
     border: 1px solid var(--border-color);
+    filter: url(#handdrawnFilter);
 }
 
 .container {
@@ -370,6 +398,7 @@ img {
     padding: 5px 10px;
     border-radius: 0;
     border: 1px solid var(--border-color);
+    filter: url(#handdrawnFilter);
 }
 
 .category-section {
@@ -384,7 +413,6 @@ img {
     border-bottom: 2px solid var(--border-color);
     padding-bottom: 5px;
 }
-
 
 .docs-container {
     display: flex;
@@ -412,6 +440,7 @@ img {
     color: var(--text-color);
     border-radius: 0;
     box-sizing: border-box;
+    filter: url(#handdrawnFilter);
 }
 
 .back-to-index {
@@ -423,6 +452,7 @@ img {
     border: 1px solid var(--border-color);
     margin-bottom: 15px;
     text-decoration: none;
+    filter: url(#handdrawnFilter);
 }
 
 .back-to-index:hover {
@@ -454,6 +484,7 @@ img {
     color: var(--text-color);
     margin-bottom: 40px;
     text-align: center;
+    filter: url(#handdrawnFilter);
 }
 
 .typewriter-text::after {
@@ -471,12 +502,14 @@ img {
     margin: 80px 0 20px 0;
     color: #555;
     text-align: center;
+    filter: url(#handdrawnFilter);
 }
 
 .error-message {
     font-size: 24px;
     margin-bottom: 40px;
     text-align: center;
+    filter: url(#handdrawnFilter);
 }
 
 .home-link {
@@ -485,6 +518,7 @@ img {
     font-size: 18px;
     display: block;
     text-align: center;
+    filter: url(#handdrawnFilter);
 }
 
 .home-link:hover {
@@ -603,7 +637,4 @@ img {
     .action-buttons a:hover, .action-buttons span:hover {
         background-color: var(--bg-secondary);
     }
-
-
-
 }

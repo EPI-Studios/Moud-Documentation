@@ -15,6 +15,27 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 </head>
 <body>
+    <svg width="0" height="0" style="position: absolute;" class="handdrawn-filter">
+        <defs>
+            <filter id="handdrawnFilter">
+                <feTurbulence
+                    type="turbulence"
+                    baseFrequency="0.02"
+                    numOctaves="2"
+                    seed="1"
+                    result="noise"
+                />
+                <feDisplacementMap
+                    in="SourceGraphic"
+                    in2="noise"
+                    scale="3"
+                    xChannelSelector="R"
+                    yChannelSelector="G"
+                />
+            </filter>
+        </defs>
+    </svg>
+
     <div class="docs-container">
         
         <aside class="sidebar" id="sidebar">
@@ -93,6 +114,25 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="{{ url_for('static', filename='js/math-formatter.js') }}"></script>
-    <script>hljs.highlightAll();</script>
+    <script>
+        hljs.highlightAll();
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const turbulenceElement = document.querySelector('#handdrawnFilter feTurbulence');
+            const baseFrequency = 0.02;
+            const offsets = [-0.01, 0.005, -0.005, 0.01, 0, -0.008, 0.008];
+            let currentIndex = 0;
+
+            function animateHanddrawn() {
+                const offset = offsets[currentIndex] * 0.3;
+                const newFrequency = baseFrequency + offset;
+                turbulenceElement.setAttribute('baseFrequency', newFrequency.toString());
+                
+                currentIndex = (currentIndex + 1) % offsets.length;
+            }
+
+            setInterval(animateHanddrawn, 150);
+        });
+    </script>
 </body>
 </html>
