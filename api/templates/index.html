@@ -112,6 +112,7 @@
             font-weight: normal;
             margin-bottom: 16px;
             color: var(--text-primary);
+            filter: url(#handdrawnFilter);
         }
 
         .tagline {
@@ -144,6 +145,7 @@
             align-items: center;
             gap: 8px;
             cursor: pointer;
+
         }
 
         .btn-primary {
@@ -178,6 +180,7 @@
             overflow: hidden;
             background-color: #fff;
             transition: border-color 0.2s ease;
+
         }
         .github-container:hover {
             border-color: var(--text-primary);
@@ -229,6 +232,27 @@
     </style>
 </head>
 <body>
+    <svg width="0" height="0" style="position: absolute;">
+        <defs>
+            <filter id="handdrawnFilter">
+                <feTurbulence
+                    type="turbulence"
+                    baseFrequency="0.02"
+                    numOctaves="2"
+                    seed="1"
+                    result="noise"
+                />
+                <feDisplacementMap
+                    in="SourceGraphic"
+                    in2="noise"
+                    scale="3"
+                    xChannelSelector="R"
+                    yChannelSelector="G"
+                />
+            </filter>
+        </defs>
+    </svg>
+
     <header class="header container">
         </nav>
     </header>
@@ -283,6 +307,21 @@
                     console.error('Failed to fetch GitHub stars:', error);
                     starCountEl.textContent = 'Error';
                 });
+
+            const turbulenceElement = document.querySelector('#handdrawnFilter feTurbulence');
+            const baseFrequency = 0.01;
+            const offsets = [0.005, -0.005, 0.01, 0, -0.008, 0.008];
+            let currentIndex = 0;
+
+            function animateHanddrawn() {
+                const offset = offsets[currentIndex] * 0.3;
+                const newFrequency = baseFrequency + offset;
+                turbulenceElement.setAttribute('baseFrequency', newFrequency.toString());
+                
+                currentIndex = (currentIndex + 1) % offsets.length;
+            }
+
+            setInterval(animateHanddrawn, 150);
         });
     </script>
 </body>
