@@ -1,189 +1,104 @@
-# Animation System
 
-Moud provides a complete animation system that allows you to create custom animations in Blockbench, export them, and play them on players and models in your game. The system supports both individual body part manipulation and complex keyframe animations.
+# Player Animation System
 
+## Core Concepts
 
-### 1. Creating Animations
+There are two primary ways to control animations in Moud, each suited for different scenarios:
 
+1.  **Keyframe Animations**: This is the traditional approach. You design a complete animation sequence (like an attack or a gesture) in an external tool like Blockbench, export it, and simply tell Moud to "play" it. This is ideal for complex, predefined sequences.
 
-You can create animations using either Blockbench or Blender since the PlayerAnimationLibrary can handle both.
+2.  **Procedural Control**: This is for real-time, dynamic manipulation. Instead of playing a pre-recorded animation, you issue direct commands every tick, such as "rotate the right arm by 45 degrees" or "make the head look at this point." This is perfect for reactive behaviors that respond to the game world.
 
-Here are the examples files :
-[https://github.com/KosmX/emotes/blob/dev/blender/README.md](https://github.com/KosmX/emotes/blob/dev/blender/README.md)
+Moud's API gives you full access to both methods, and they can even be used in combination.
 
-### 3. Exporting Animations
+## Keyframe Animations
 
-Export your animations for use in Moud:
+This is the most straightforward way to play elaborate animations.
 
-1. **Go to File → Export → Animation**
-2. **Choose "Bedrock Animation"** format
-3. **Save the .animation.json file** to your project's `assets/animations/` directory
+### 1. Authoring in Blockbench
 
-The exported file structure should look like:
-```
-my-project/
-├── assets/
-│   └── player_animations/
-│       ├── player_wave.animation.json
-│       ├── player_dance.animation.json
+Your workflow begins outside of code.
+1.  Open **Blockbench** and create your animation on a standard Minecraft player model.
+2.  When finished, navigate to `File > Export > Export Bedrock Animation`.
+3.  Save the resulting `.json` file into your server project's `assets/moud/animations/` directory. For example: `assets/moud/animations/wave.json`.
+
+```hint info Animation Naming
+The filename is crucial. If you name your file `wave.json`, the ID for your animation within Moud becomes `moud:wave`. The `moud:` prefix is the default "namespace" for your project's assets.
 ```
 
-## Playing Animations
+### 2. Playing the Animation in-game
 
-### Player Animations
-
-Use the animation system to play custom animations on players:
+Once the animation file is in your assets folder, playing it is a one-line command using `player.animation.playAnimation()`.
 
 ```typescript
+// Triggers a wave animation when a player types !wave
 api.on('player.chat', (event) => {
   const player = event.getPlayer();
   const message = event.getMessage();
 
   if (message === '!wave') {
-    player.getAnimation().playAnimation('moud:player_wave');
-  }
-  
-  if (message === '!dance') {
-    player.getAnimation().playAnimation('moud:player_dance');
-  }
-});
-```
-
-
-![video](https://youtu.be/YFbJkHxcCKk){width=800,height=450,muted}
-
-
-
-### Model Animations
-
-For PlayerModel objects created through the world API:
-
-```typescript
-const npc = api.getWorld().createPlayerModel({
-  position: api.vector3(10, 70, 10),
-  skinUrl: "https://example.com/skin.png"
-});
-
-npc.playAnimation('moud:npc_idle');
-
-npc.onClick((player, clickData) => {
-  npc.playAnimation('moud:npc_greet');
-  player.sendMessage("Hello there!");
-});
-```
-
-## Individual Body Part Control
-
-For real-time body part manipulation without pre-made animations:
-
-### Basic Part Configuration
-
-```typescript
-player.getAnimation().setPartConfig('right_arm', {
-  rotation: api.vector3(-45, 0, 45),
-  position: api.vector3(0, 0, 0),
-  scale: api.vector3(1, 1, 1),
-  visible: true,
-  overrideAnimation: true,
-  interpolation: {
-    enabled: true,
-    duration: 300,
-    easing: 'ease_out'
+    // Prevent the command from appearing in chat
+    event.cancel();
+    
+    // Play the animation using its ID
+    player.animation.playAnimation('moud:wave');
   }
 });
 ```
 
-### Available Body Parts
+## Body Part Control
 
-- `head` - Player's head
-- `body` - Torso/chest
-- `right_arm` - Right arm
-- `left_arm` - Left arm
-- `right_leg` - Right leg
-- `left_leg` - Left leg
+For dynamic control, you can manipulate individual body parts in real-time using `player.animation.setPartConfig()`. This method gives you direct access to the position, rotation, and scale of a player's limbs.
 
-### Pointing at Positions
-
-The system includes a utility for making players point at world locations:
+### Example: Raising an Arm
 
 ```typescript
-const targetPosition = api.vector3(100, 70, 100);
-player.getAnimation().pointToPosition(targetPosition, {
-  interpolation: {
-    enabled: true,
-    duration: 500,
-    easing: 'ease_in_out'
-  }
+api.on('player.chat', (event) => {
+    const player = event.getPlayer();
+
+    if(event.getMessage() === '!raise') {
+        event.cancel();
+
+        player.animation.setPartConfig('right_arm', {
+            // Rotates the arm -90 degrees on the X-axis (forward and up)
+            rotation: api.math.vector3(-90, 0, 0),
+            
+            // Defines a smooth transition to the new rotation over 500ms
+            interpolation: {
+                enabled: true,
+                duration: 500,
+                easing: 'ease_out' // Other options: 'ease_in', 'ease_in_out', 'linear'
+            }
+        });
+    }
 });
 ```
 
-## Animation States and Blending
+### `setPartConfig` Parameters
 
-### State-Based Animations
+| Property | Type | Description |
+|---|---|---|
+| `position` | `Vector3` | Offsets the body part from its default pivot point. |
+| `rotation` | `Vector3` | Applies a rotation in degrees (pitch, yaw, roll) on the X, Y, and Z axes. |
+| `scale` | `Vector3` | Stretches or shrinks the body part. `vector3(1, 1, 1)` is normal size. |
+| `visible` | `boolean` | Set to `false` to make a body part invisible. |
+| `overrideAnimation`| `boolean`| If `true`, this pose will take priority over any keyframe animation currently playing. |
+| `interpolation`| `object` | An optional object to define a smooth transition to the target state. |
 
-Soon
+## First-Person View Configuration
 
-### Animation Events Integration
+You have full control over what is rendered from the player's own perspective. This is crucial for creating immersive experiences where custom animations don't clip through the camera.
 
-Trigger animations based on game events:
-
-```typescript
-api.on('player.movement_state', (player, movementData) => {
-  if (movementData.sprinting) {
-    player.getAnimation().playAnimation('moud:player_sprint');
-  } else if (movementData.forward || movementData.backward || movementData.left || movementData.right) {
-    player.getAnimation().playAnimation('moud:player_walk');
-  } else {
-    player.getAnimation().playAnimation('moud:player_idle');
-  }
-});
-
-api.on('player.jump', (player) => {
-  player.getAnimation().playAnimation('moud:player_jump');
-});
-
-api.on('player.sneak.start', (player) => {
-  player.getAnimation().playAnimation('moud:player_sneak');
-});
-```
-
-## First-Person View Control
-
-Configure what's visible in first-person view:
+Use `player.animation.setFirstPersonConfig()` to define the visibility of arms and items.
 
 ```typescript
-player.getAnimation().setFirstPersonConfig({
-  showRightArm: true,
+// Example: Create a "left-handed" mode where only the left arm and item are visible
+player.animation.setFirstPersonConfig({
+  showRightArm: false,
+  showRightItem: false,
   showLeftArm: true,
-  showRightItem: true,
-  showLeftItem: false,
-  showArmor: false
+  showLeftItem: true,
+  showArmor: true // Armor visibility can also be controlled
+  // showTorso: Comming soon
 });
 ```
-
-### Animation Validation
-
-The system automatically validates animation files on server start. Check console logs for:
-
-- Missing animation files
-- Invalid keyframe data
-- Malformed JSON structure
-
-### Memory Management
-
-```typescript
-player.getAnimation().resetAllParts();
-
-api.on('player.leave', (event) => {
-  const playerId = event.getUuid();
-});
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Animation not playing**: Check that the animation ID matches the exported file
-2. **Jerky movement**: Increase interpolation duration or check keyframe easing
-3. **Parts not visible**: Verify the `visible` property is set to `true`
-4. **Animations conflicting**: Use `overrideAnimation: true` to prevent conflicts

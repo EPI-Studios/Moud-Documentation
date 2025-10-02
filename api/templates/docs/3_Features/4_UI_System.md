@@ -1,239 +1,180 @@
-# Client-Side UI System
 
-Moud provides a powerful client-side UI system that allows you to create custom interfaces, HUDs, menus, and interactive elements. The UI is rendered on top of the game world and can be controlled from both server and client scripts.
+# The UI System
 
-## Understanding the UI Architecture
+Moud includes a client-side UI system designed to feel familiar to web developers. It allows you to create custom interfaces, HUDs, menus, and interactive elements using a component-based, declarative API.
 
-### Client-Side Rendering
+## Core Concepts
 
-The UI system runs entirely on the client for maximum responsiveness:
+The UI system is built on a clear architectural separation: **state is managed by the server, while rendering and interaction are handled by the client.**
 
-1. **Server sends UI data** via Shared Values or network events
-2. **Client receives data** and creates/updates UI elements
-3. **Client renders UI** over the game world
-4. **User interactions** are captured and can be sent back to server
+### Client-Side Authority
 
-### UI Element Types
+All UI elements are created and rendered exclusively on the client. This ensures that interfaces are perfectly smooth and responsive, running at the player's native frame rate without any network latency. Animations, hover effects, and input validation happen instantly.
 
-Moud supports several UI element types:
+### The Role of the Server
 
-- **Text**: Display text with various styling options
-- **Button**: Interactive clickable buttons
-- **Input**: Text input fields
-- **Container**: Layout containers for organizing other elements
-- **Image**: Display textures and images
+The server's job is not to draw the UI, but to provide the **data** that the UI displays. It acts as the single source of truth for the game state. For example, the server manages the player's health value; the client's UI simply reads that value and displays it.
 
-## Creating UI Elements
+## Building a Simple HUD
 
-### Client-Side UI Creation
+Let's build a practical example: a custom mana bar for a player.
 
-UI elements are created and managed in client scripts:
+#### Server-Side Logic
+The server is responsible for managing the `mana` and `maxMana` values.
 
 ```typescript
-// client/main.ts
-
-// create a simple HUD element
-const healthText = moudAPI.ui.createText("Health: 100/100");
-healthText.setPosition(10, 10).show();
-
-// create an interactive button
-const healButton = moudAPI.ui.createButton("Heal");
-healButton.setPosition(10, 50);
-
-healButton.onClick(() => {
-  moudAPI.network.sendToServer('player_heal', { type: 'button_heal' });
-});
-
-healButton.show();
-```
-
-### Server-Side UI Control via Shared Values
-
-The most common pattern is to control UI from the server using Shared Values:
-
-```typescript
-// server/main.ts
 api.on('player.join', (player) => {
-  const uiStore = player.getShared().getStore('ui');
-  
-  // set initial UI state
-  uiStore.set('health', 100);
-  uiStore.set('maxHealth', 100);
-  uiStore.set('mana', 50);
-  uiStore.set('showHealButton', true);
+  const uiStore = player.shared.getStore('playerUI');
+
+  uiStore.set('mana', 80);
+  uiStore.set('maxMana', 100);
 });
 
-// update UI when health changes
-function damagePlayer(player: Player, damage: number) {
-  const uiStore = player.getShared().getStore('ui');
-  const currentHealth = uiStore.get('health') as number;
-  const newHealth = Math.max(0, currentHealth - damage);
-  
-  uiStore.set('health', newHealth);
-  
-  if (newHealth <= 20) {
-    uiStore.set('showHealButton', true);
-  }
+function castSpell(player: Player) {
+    const uiStore = player.shared.getStore('playerUI');
+    const currentMana = uiStore.get('mana') as number;
+
+    if (currentMana >= 10) {
+     
+        uiStore.set('mana', currentMana - 10);
+    }
 }
 ```
 
-```typescript
-// client/main.ts
-const uiStore = moudAPI.shared.getStore('ui');
+#### Client-Side Rendering
 
-// react to health changes
-uiStore.onChange('health', (newHealth, oldHealth) => {
-  const maxHealth = uiStore.get('maxHealth') as number;
-  healthText.setText(`Health: ${newHealth}/${maxHealth}`);
-  
-  // change color based on health
-  if (newHealth <= 20) {
-    healthText.setTextColor('#FF0000'); // Red
-  } else if (newHealth <= 50) {
-    healthText.setTextColor('#FFFF00'); // Yellow
-  } else {
-    healthText.setTextColor('#00FF00'); // Green
-  }
-});
-
-// show/hide heal button
-uiStore.onChange('showHealButton', (show) => {
-  if (show) {
-    healButton.show();
-  } else {
-    healButton.hide();
-  }
-});
-```
-
-## UI Element Properties and Styling
-
-### Text Elements
+The client is responsible for creating the UI elements and updating them when the server's data changes.
 
 ```typescript
-const titleText = moudAPI.ui.createText("Game Title");
-titleText
-  .setPosition(100, 50)
-  .setTextColor('#FFFFFF')
-  .setTextAlign('center')
-  .show();
-```
+const hudContainer = Moud.ui.createContainer()
+    .setPos(10, 10)
+    .setSize(150, 20)
+    .setBackgroundColor("#00000088")
+    .setBorder(1, "#FFFFFF22");
 
-### Button Elements
+const manaBarBg = Moud.ui.createContainer()
+    .setPos(12, 12)
+    .setSize(146, 16)
+    .setBackgroundColor("#555555");
+const manaBarFg = Moud.ui.createContainer()
+    .setPos(12, 12)
+    .setSize(146, 16)
+    .setBackgroundColor("#3B82F6"); 
 
-```typescript
-const menuButton = moudAPI.ui.createButton("Open Menu");
-menuButton
-  .setPosition(200, 100)
-  .setSize(120, 30)
-  .setBackgroundColor('#4A4A4A')
-  .setBorderColor('#FFFFFF')
-  .setBorderWidth(2)
-  .setTextColor('#FFFFFF')
-  .show();
-```
-
-### Input Elements
-
-```typescript
-const chatInput = moudAPI.ui.createInput("Type message...");
-chatInput
-  .setPosition(10, 400)
-  .setSize(300, 25)
-  .show();
-
-chatInput.onChange((newValue, oldValue) => {
-  console.log(`Input changed: ${newValue}`);
-});
-```
-
-### Container Elements
-
-```typescript
-const hudContainer = moudAPI.ui.createContainer();
-hudContainer
-  .setPosition(10, 10)
-  .setSize(200, 150)
-  .setBackgroundColor('#00000080') // semi-transparent
-  .show();
-
-// add child elements to container
-hudContainer.appendChild(healthText);
+const manaText = Moud.ui.createText("Mana: 80 / 100")
+    .setPos(15, 14)
+    .setTextColor("#FFFFFF");
+hudContainer.appendChild(manaBarBg);
+hudContainer.appendChild(manaBarFg);
 hudContainer.appendChild(manaText);
-```
+hudContainer.showAsOverlay();
 
-## Positioning and Layout
+const uiStore = Moud.shared.getStore('playerUI');
 
-### Absolute Positioning
+function updateManaBar() {
+    const mana = uiStore.get('mana') as number ?? 0;
+    const maxMana = uiStore.get('maxMana') as number ?? 100;
 
-```typescript
-element.setPosition(x, y);
-```
-
-### Relative Positioning
-
-```typescript
-const uiService = moudAPI.ui;
-
-// position relative to screen
-uiService.positionRelative(element, 'top-left');
-uiService.positionRelative(element, 'top-right');
-uiService.positionRelative(element, 'bottom-center');
-uiService.positionRelative(element, 'center');
-
-// percentage-based positioning
-uiService.setPositionPercent(element, 50, 25); // 50% right, 25% down
-uiService.setSizePercent(element, 30, 10);     // 30% width, 10% height
-```
-
-### Responsive Design
-
-```typescript
-function updateUILayout() {
-  const screenWidth = moudAPI.ui.getScreenWidth();
-  const screenHeight = moudAPI.ui.getScreenHeight();
-  
-  // adjust UI based on screen size
-  if (screenWidth < 1024) {
-    // small screen layout
-    hudContainer.setSize(screenWidth - 20, 100);
-  } else {
-    // biggy layout
-    hudContainer.setSize(300, 150);
-  }
+    const fillPercentage = maxMana > 0 ? mana / maxMana : 0;
+    manaBarFg.setWidth(146 * fillPercentage);
+    manaText.setText(`Mana: ${mana} / ${maxMana}`);
 }
 
-// update layout when screen changes
-window.addEventListener('resize', updateUILayout);
+uiStore.onChange('mana', updateManaBar);
+uiStore.onChange('maxMana', updateManaBar);
+updateManaBar();
 ```
 
+## Component Reference
 
-## UI Events and Interactions
-
-### Mouse Events
+### Containers (`createContainer`)
+Containers are the building blocks for layout. They can hold other elements and arrange them using a flexbox-like system.
 
 ```typescript
-element.onClick((element, mouseX, mouseY, button) => {
-  console.log(`Clicked at ${mouseX}, ${mouseY} with button ${button}`);
-});
+const panel = Moud.ui.createContainer()
+  .setFlexDirection('column') // 'row' or 'column'
+  .setAlignItems('center')    // 'flex-start', 'center', 'flex-end', 'stretch'
+  .setJustifyContent('center')// 'flex-start', 'center', 'flex-end', 'space-between'
+  .setGap(8)                  // space between children
+  .setPadding(10, 10, 10, 10);
+```
 
-element.onHover((element) => {
-  element.setBackgroundColor('#606060'); // Hover effect
+### Text (`createText`)
+Used for displaying text.
+
+```typescript
+const label = Moud.ui.createText("Hello, World!")
+  .setTextColor('#FFFFFF')
+  .setTextAlign('center'); // 'left', 'center', 'right'
+```
+
+### Buttons (`createButton`)
+Simple, clickable text buttons.
+
+```typescript
+const myButton = Moud.ui.createButton("Click Me");
+myButton.onClick(() => {
+  console.log("Button was clicked!");
+  // send an event to the server
+  Moud.network.sendToServer('my_button_clicked', {});
 });
 ```
 
-### Keyboard Events
+### Images (`createImage`)
+Displays a texture from the game's assets. The source path follows Minecraft's resource location format.
 
 ```typescript
-moudAPI.input.onKey('key.keyboard.i', (pressed) => {
-  if (pressed) {
-    inventoryUI.show();
-  }
+const icon = Moud.ui.createImage("minecraft:textures/item/diamond.png")
+  .setSize(32, 32);
+```
+
+### Inputs (`createInput`)
+Text input fields for user entry.
+
+```typescript
+const nameInput = Moud.ui.createInput("Enter your name");
+
+nameInput.onChange((component, newValue, oldValue) => {
+  console.log(`Text changed to: ${newValue}`);
 });
 
-moudAPI.input.onKey('key.keyboard.escape', (pressed) => {
-  if (pressed) {
-    inventoryUI.hide();
-  }
+nameInput.onSubmit((component, submittedValue) => {
+  console.log(`Submitted: ${submittedValue}`);
+  // e.g., send the name to the server
 });
+```
+
+## Layout and Styling
+
+All elements share a common set of methods for styling and positioning.
+
+| Method | Description |
+| :--- | :--- |
+| `setPos(x, y)` | Sets the absolute top-left position on the screen. |
+| `setSize(width, height)` | Sets the dimensions of the element. |
+| `setBackgroundColor(hex)` | Sets the background color (e.g., `'#FF000088'` for semi-transparent red). |
+| `setBorder(width, hex)` | Adds a border around the element. |
+| `setOpacity(value)` | Sets the overall opacity from 0.0 (invisible) to 1.0 (fully visible). |
+| `showAsOverlay()` | Adds the element to the screen. |
+| `hideOverlay()` | Hides the element. This simply sets its `visible` flag to `false`. |
+
+## Responding to Window Resizing
+
+To create responsive UIs that adapt to different screen sizes, listen to the `render:resize` event.
+
+```typescript
+function layoutMyUI() {
+    const screenWidth = Moud.ui.getScreenWidth();
+    const screenHeight = Moud.ui.getScreenHeight();
+
+    // center the main panel on the screen
+    const panelWidth = mainPanel.getWidth();
+    mainPanel.setPos(screenWidth / 2 - panelWidth / 2, 50);
+}
+
+// run layout once on startup
+layoutMyUI();
+
+// and re-run it every time the window size changes
+Moud.events.on('render:resize', layoutMyUI);
 ```
