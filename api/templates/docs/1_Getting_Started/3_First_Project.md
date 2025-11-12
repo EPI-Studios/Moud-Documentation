@@ -1,64 +1,91 @@
 # Your First Project
 
-Now that the Moud CLI is installed, let's create and run your first Moud project.
+Let's go from an empty folder to a running game loop that you can join with the Fabric mod. The steps below mirror what happens inside the `example/ts` project that ships with the repository.
 
-## 1. Create the Project
-
-Open your terminal and run the CLI's `create` command:
+## 1. Scaffold
 
 ```bash
 moud create
 ```
-  
 
-The CLI will ask you a few questions to set up the project. To start, you can simply accept the default options.
+Answer the prompts:
 
 ```
 ? What is the name of your game? my-first-game
-? Choose a project template: TypeScript (Default)`
+? Choose a project template: TypeScript (Default)
 ```
 
-The CLI will then create a new my-first-game folder with the entire base structure, configuration files, and example code.
+This generates:
+
+- `src/main.ts` – server entry point preloaded with sample logic.
+- `client/` – placeholder folder for optional client scripts.
+- `assets/` – drop textures, models (`.obj/.gltf`), shaders (`.glsl`), sounds, and animation JSON.
+- `package.json`, `tsconfig.json`, `.gitignore`, and the CLI scripts discussed earlier.
 
 ## 2. Install Dependencies
 
-Navigate into your new project's directory and install the development dependencies (like the TypeScript SDK) using npm.
+Inside the new directory:
 
-```
+```bash
 cd my-first-game
-```
-  
-
-## 3. Run the Development Server
-
-The dev command is your main tool during development. It compiles your scripts, starts the Moud server, and can even watch for file changes to restart automatically.
-
-To start the server in "watch" mode, run:
-
-```
-npm run dev -- --watch (or moud dev)
-```
-  
-
-```hint tip Why use -- --watch? 
-In npm, the first -- is used to pass arguments directly to the underlying command (in this case, moud dev). The --watch (or -w) flag enables hot-reloading. Every time you save a file in the src/, client/, or assets/ folders, the CLI will re-transpile and restart the server for you.  
+pnpm install        # or npm install / yarn
 ```
 
-The server will start, and you will see logs appearing in your console.
+This installs the SDK typings plus TypeScript. No runtime dependencies are required because the server bundles Graal/Minestom internally.
 
-## 4. Connect to the Server
+## 3. Launch the Dev Server
 
-1.  **Install the Moud Client:** To connect, you need the Moud client mod for Fabric. Make sure it's in your Minecraft mods folder.
-    
-2.  **Launch Minecraft:** Start the game using the Fabric Loader.
-    
-3.  **Multiplayer:** Go to the Multiplayer menu and add a new server with the address localhost:25565 (or the port you configured).
-    
-4.  **Join the server!**
-    
+```bash
+npm run dev -- --watch   # alias for `moud dev --watch`
+```
 
-Upon connecting, you should see the welcome message defined in src/main.ts appear in the chat.
+What happens under the hood:
 
-## What's Next?
+1. **Environment bootstrap** – downloads Java 21 and the latest `moud-server.jar` into `~/.moud` if missing.
+2. **Transpile** – runs esbuild on `src/main.ts` and any client scripts, saving them in `.moud/cache`.
+3. **Start Minestom** – launches the Java server with your project root, enables hot reload, opens port `25565`, and exposes an HTTP endpoint on `port+1000` for reload requests.
+4. **Watch** – chokidar watches `src/`, `client/`, and `assets/`. Saving a file triggers `Transpiler.transpileProject()` and hits the hot-reload endpoint; no restart needed.
 
-Congratulations, your Moud project is up and running! You can now start modifying the src/main.ts file to change the server's logic. Try changing the welcome message or adding new commands in the player.chat event for example.
+```hint tip Hot reload visibility
+`moud dev` prints the reload hash each time it rebuilds. If you see `Server responded with status 200`, the Graal runtime swapped your scripts without disconnecting players.
+```
+
+## 5. Edit Something
+
+Open `src/main.ts` and tweak one of the demo hooks—for example, add a simple chat event test:
+
+```ts
+api.on('player.chat', (event) => {
+  const player = event.getPlayer();
+  const message = event.getMessage().trim();
+
+  if (message === 'hello') {
+    event.cancel();
+    player.sendMessage('Welcome vro');
+  }
+});
+```
+
+Save the file. The CLI recompiles, sends a new bundle, and the running client updates instantly. 
+
+## 6. Optional Dev Utilities
+
+Run the server with `moud dev --dev-utils` to enable in-game commands such as:
+
+- `/sharedinspect <player>` – inspect Shared Values coming from `SharedValueManager`.
+- `/networkprobe` – stream packet stats from `ServerNetworkManager`.
+- `/spawnlight` – live-test the lighting API without writing code.
+
+Use these while iterating on systems such as Shared Values or lights; the commands are registered from `DevUtilities` inside the server module.
+
+## 7. Build for Distribution
+
+When you're ready to share a build:
+
+```bash
+npm run build   # -> moud pack
+```
+
+`moud pack` runs the transpiler in production mode, copies assets, embeds the latest `moud-server.jar`, and writes a zipped folder under `dist/`. Players can unzip it and run `run.sh` / `run.bat` to host your experience without installing Node or the CLI.
+
+At this point you've touched every part of the toolchain—CLI, server runtime, Fabric mod, hot reload, and the packer. The remaining chapters dive into the core systems you can script on both sides.

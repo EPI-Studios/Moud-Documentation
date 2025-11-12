@@ -1,89 +1,92 @@
-Client-Server Synchronization
+# Client-Server Synchronisation (Shared Values)
 
-In a client-server architecture, maintaining a consistent state (e.g., a player's health, inventory contents, UI state) is a major challenge. Moud solves this problem with a powerful yet simple system called **Shared Values**.
+UI overlays, HUDs, cursors, and audio cues almost always need up-to-date data from the authoritative server. Moud’s **Shared Values** system solves that problem without requiring you to design custom packets. Think of it as per-player, reactive key-value stores with built-in permissions and diffing.
 
-## The Problem: Keeping the Client Updated
+```
+[Server SharedValueStore]  <-- ValueSynchronizer -->  [Client SharedValueStore]
+         ^ (authoritative)                                 ^ (cached copy)
+```
 
-Imagine your player has a "mana" bar. The mana value is managed by the server, but the mana bar is displayed by the client. How does the client know when and how to update the bar?
+## How it Works
 
-Moud's solution is to "share" the mana value between the server and the client.
+1. Each player has an arbitrary number of named stores (`player.getShared().getStore('playerStats')`).
+2. Stores are simple string → JSON-serialisable value maps.
+3. `SharedValueManager` diffs store mutations, batches them (`batched` mode) or flushes immediately, and sends compact packets through `ServerNetworkManager`.
+4. `client-mod` receives the delta, updates its own `ClientSharedValueManager`, and fires callbacks registered via `Moud.shared.getStore(...).onChange(...)`.
+5. If a key is marked `hybrid`, the client may call `.set()` locally, the change is validated server-side before being applied.
 
-## The Shared Values System
+`DevUtilities` expose `/sharedinspect` so you can inspect every store/key pair live while developing.
 
-The Shared Values system allows you to create named key-value data "stores" that are automatically synchronized with a specific client.
+## Server API
 
-### Server-Side: Setting a Value
-
-On the server, you access a player's stores via `player.getShared()`.
-
-```typescript
-// src/main.ts
-
+```ts
 api.on('player.join', (player) => {
-  //get or create a store named 'playerStats' for this player
-  const statsStore = player.getShared().getStore('playerStats');
+  const stats = player.getShared().getStore('playerStats');
+  stats.set('mana', 100);                    // batched + hybrid (default)
+  stats.set('maxMana', 100, 'batched', 'server_only');
+  stats.set('loadout', ['staff', 'cloak']);
+});
+```
 
-  // set the 'mana' value. The client will be automatically notified.
-  statsStore.set('mana', 100);
-  statsStore.set('maxMana', 100);
+`set(key, value, syncMode?, permission?)`
+
+- **`syncMode`**
+  - `batched` (default) – accumulate writes during the current tick and send them as one payload.
+  - `immediate` – flush right away, ideal for health bars or situations where latency matters more than bandwidth.
+- **`permission`**
+  - `hybrid` (default) – server and client may both call `.set()`. The server always wins if there’s a conflict.
+  - `server_only` / `client_readonly` – only the server may mutate. Client attempts return `false`.
+
+```hint tip Use stores as boundaries
+Create multiple stores per player (`playerStats`, `hud`, `abilities`). It keeps payloads atomic and reduces accidental `onChange` spam.
+```
+
+Other helpers:
+
+| Method | Description |
+| --- | --- |
+| `store.get(key)` | Returns the last known value (server-side). |
+| `store.has(key)` | Boolean. |
+| `store.remove(key)` | Deletes a key and propagates the deletion. |
+| `store.keys()` | Returns known keys (server-side convenience). |
+
+## Client API
+
+```ts
+const stats = Moud.shared.getStore('playerStats');
+
+stats.onChange('mana', (mana, prev) => {
+  const max = stats.get('maxMana') ?? 100;
+  manaLabel.setText(`Mana: ${mana}/${max}`);
+  manaBar.setWidth(146 * (mana / max));
 });
 
-// imagine a spell costs 10 mana
-function castSpell(player: Player) {
-    const statsStore = player.getShared().getStore('playerStats');
-    const currentMana = statsStore.get('mana') as number;
+stats.on('change', (key, value) => {
+  console.log('Any key changed', key, value);
+});
+```
 
-    if (currentMana >= 10) {
-        statsStore.set('mana', currentMana - 10);
-    }
+- `onChange(key, callback)` fires only when the key changes.
+- `on('change', callback)` fires for every mutation in the store.
+- `get`, `has`, `keys`, `entries` mirror the server API.
+- `set` returns `true` when the client is allowed to request a change (hybrid keys). The server will echo the authoritative value back once it validates it.
+
+```ts
+const loadout = Moud.shared.getStore('playerStats');
+if (loadout.canModify('selectedSlot')) {
+  loadout.set('selectedSlot', 2);  // optimistic update
 }
 ```
-  
 
-### Client-Side: Listening for Changes
+## Diagnostics
 
-On the client, you can listen for changes to a specific key and react accordingly, such as by updating a UI element.
+- `/sharedinspect <player> [store]` – prints store metadata plus last-writer, dirty flags, and timestamps. Requires `moud dev --dev-utils`.
+- `SharedStoreSnapshot` objects provide structured data for custom dashboards if you need more than the built-in command.
+- `SharedValueManager.snapshotAllStores()` can be invoked from debug scripts to emit JSON into logs.
 
-```typescript
-// client/main.ts
+## Best Practices
 
-// create a text element to display mana
-const manaText = moudAPI.ui.createText("Mana: 100/100");
-manaText.setPosition(10, 10).show();
+1. **Keep payloads JSON-friendly** – Avoid functions/classes.
+2. **Chunk large data** – for big collections (like inventory) consider storing them under separate keys (`slots.0`, `slots.1`, …) instead of a single 400-item array to reduce network bandwight
 
-// access the same 'playerStats' store
-const statsStore = moudAPI.shared.getStore('playerStats');
 
-// register a callback that will fire ONLY if the 'mana' value changes
-statsStore.onChange('mana', (newValue, oldValue) => {
-  console.log(`Mana changed from ${oldValue} to ${newValue}`);
-  
-  // get the maxMana value for display
-  const maxMana = statsStore.get('maxMana') as number;
-  
-  // update the UI text
-  manaText.setText(`Mana: ${newValue}/${maxMana}`);
-});
-```
-  
-### Synchronization Options
-
-The store.set() method can take optional arguments for finer control:
-
--   **syncMode**:
-    
-    -   'batched' (default): Groups multiple changes that occur in the same tick into a single network packet. This is the most efficient option.
-        
-    -   'immediate': Sends a packet instantly for this specific change. Use for high-priority updates.
-        
--   **permission**:
-    
-    -   'hybrid' (default): Both the server and client can modify the value.
-        
-    -   'server_only' or 'client_readonly': Only the server can modify the value. The client receives updates but cannot change it.
-        
-
-```typescript
-// The score can only be modified by the server
-statsStore.set('score', 0, 'batched', 'server_only');`
-```

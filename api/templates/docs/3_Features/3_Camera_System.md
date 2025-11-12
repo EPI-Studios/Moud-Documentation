@@ -1,130 +1,109 @@
-# The Camera System
+# Camera System
 
-It allows you to detach the player's viewpoint from their character, giving you complete, script-driven control over what they see. This capability is the foundation for creating everything from scripted cutscenes and spectator modes for  gameplay mechanics
+Moud lets you take over a player’s camera by either the server or client and drive it with declarative commands. 
 
-## Core Concepts
+The API is symmetrical:
 
-Moud's camera philosophy is simple: you have a virtual camera that you can command from either the server or the client. The API is **identical** on both sides.
+- `player.camera` – server-side `CameraLockProxy`; works even if the player isn’t running any client script.
+- `Moud.camera` – client-side service for scripts running inside the Fabric mod (perfect for UI-driven flows).
 
-### The Detached Camera
+## Detaching and Restoring
 
-When you activate custom camera control, you are not just tweaking the player's view; you are replacing it with a fully independent, scriptable camera. The system automatically handles everything:
-
-1.  **Seamless Perspective Switching**: If the player is in first-person, the system automatically switches them to a third-person view so their own character model becomes visible. When control is released, their original perspective is restored.
-2.  **Input Lock**: Standard player controls (movement and mouse look) are decoupled from the camera's view. This ensures your scripted movements are smooth and uninterrupted.
-3.  **Absolute Authority**: Your script becomes the sole authority for the camera's state: its position (`x, y, z`), rotation (`pitch`, `yaw`, `roll`), and Field of View (`fov`).
-
-This clean separation allows you to move the player character around in the world (e.g., following a path) while the player's viewpoint follows a completely different.
-
-### `snapTo` vs. `transitionTo`
-
-Instead of manually updating the camera every frame, you use a declarative approach. You tell the camera *where it should be*, and the system handles the rest. There are two primary methods for this:
-
--   **`snapTo(options)`**: This is an instantaneous cut. It teleports the camera to the specified state. It's perfect for setting an initial scene, for quick cuts, or for updating the camera's position continuously within a loop (like making it follow an entity).
-
--   **`transitionTo(options)`**: This is the heart of the cinematic system. It creates a smooth, interpolated animation from the camera's current state to a new target state. You define the destination and the `duration`, and the client-side renderer will generate all the in-between frames for a fluid motion.
-
-## Controlling the Camera
-
-The API is accessible via `player.camera` on the server and `Moud.camera` on the client.
-
-### Enabling and Disabling
-
-First, you must explicitly take control of the camera.
-
--   **`enableCustomCamera()`**: Activates the system. The camera detaches from the player and is now ready to receive `snapTo` or `transitionTo` commands.
--   **`disableCustomCamera()`**: Returns control to the player. The camera re-attaches to their head, and their original perspective is restored.
-
-```typescript
+```ts
 api.on('player.chat', (event) => {
   const player = event.getPlayer();
-  if (event.getMessage() === '!cctv') {
-    event.cancel();
+  if (event.getMessage() !== '!cine') return;
 
-    if (player.camera.isCustomCameraActive()) {
-      player.camera.disableCustomCamera();
-      player.sendMessage("CCTV view disabled.");
-    } else {
-      player.camera.enableCustomCamera();
-      player.camera.snapTo({ 
-        position: api.math.vector3(10, 80, 10),
-        pitch: -45,
-        yaw: 135
-      });
-      player.sendMessage("CCTV view enabled.");
-    }
+  event.cancel();
+  const cam = player.camera;
+
+  if (cam.isCustomCameraActive()) {
+    cam.disableCustomCamera();
+    player.sendMessage('Camera released.');
+  } else {
+    cam.enableCustomCamera();
+    cam.snapTo({
+      position: api.math.vector3(0, 90, 0),
+      yaw: 180,
+      pitch: -35,
+      fov: 60
+    });
+    player.sendMessage('Cinematic camera engaged.');
   }
 });
 ```
 
-### Creating a Cinematic Sequence
+`enableCustomCamera()` locks the camera position/rotation/FOV to script-defined values, switches the player to third-person (so their body is visible), and tells `CursorService` to interpret mouse movement as camera yaw/pitch updates. `disableCustomCamera()` hands everything back to vanilla behaviour.
 
-The `transitionTo` method makes camera movements incredibly simple. You can chain transitions together using `setTimeout` to build a full cutscene.
+## Commands: snap vs transition
 
-```typescript
-async function startOpeningCinematic(player: Player) {
-  player.camera.enableCustomCamera();
+| Method | Use case |
+| --- | --- |
+| `snapTo(options)` | Hard cut. Useful when setting the initial shot or keeping the camera attached to a moving object every tick. |
+| `transitionTo(options)` | Smoothly animate to a new state. Provide `duration` (ms) and optional `easing(progress: number) => number`. |
 
-  // instantly set the starting position of the cinematic
-  player.camera.snapTo({
-    position: api.math.vector3(-50, 90, -50),
-    pitch: -20,
-    yaw: -135,
-    fov: 60
-  });
-  
-  // wait for a moment, then start a slow pan to the next shot
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  player.camera.transitionTo({
-    position: api.math.vector3(50, 80, 50),
-    yaw: 45,
-    duration: 10000, // 10sec
-    easing: (p) => p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2 // ease-in-out
-  });
-  
-  // wait for the transition to finish, then release the camera
-  await new Promise(resolve => setTimeout(resolve, 10000));
-  player.camera.disableCustomCamera();
+```ts
+await cam.transitionTo({
+  position: api.math.vector3(-30, 70, -30),
+  yaw: 45,
+  pitch: -10,
+  fov: 50,
+  duration: 6000,
+  easing: (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+});
+```
+
+All unspecified properties keep their previous values, so you can animate just the yaw or just the fov.
+
+## Building a Cutscene
+
+```ts
+async function runIntro(player: Player) {
+  const cam = player.camera;
+  cam.enableCustomCamera();
+
+  cam.snapTo({ position: api.math.vector3(10, 80, 10), yaw: 120, pitch: -25, fov: 70 });
+  await wait(1000);
+
+  await cam.transitionTo({ position: api.math.vector3(-15, 72, 0), yaw: -30, duration: 7000 });
+  await cam.transitionTo({ position: api.math.vector3(-5, 66, 6), yaw: 10, pitch: -5, duration: 5000 });
+
+  cam.disableCustomCamera();
 }
 ```
 
-```hint info Easing Functions
-The `transitionTo` method accepts an optional `easing` property, which can be a JavaScript function. This function takes a progress value `p` (from 0.0 to 1.0) and should return an adjusted progress value. This allows you to create custom acceleration and deceleration curves for your camera movements.
+Combine this with `player.cursor.setVisible(false)` to hide the cursor, or `player.animation.setFirstPersonConfig` to prevent limbs from showing in the shot.
+
+## Client-side Usage
+
+Inside a Fabric script you get the same API via `Moud.camera`.
+
+```ts
+Moud.camera.enableCustomCamera();
+Moud.camera.snapTo({ position: Moud.math.vector3(0, 90, 0), yaw: 0, pitch: -60 });
+
+uiSkipButton.onClick(() => {
+  Moud.camera.disableCustomCamera();
+});
 ```
+
+Use this to drive UI-originated experiences (e.g., a spectator who can orbit an arena locally without asking the server).
+
 ## API Reference
 
-*This API is identical for `player.camera` (server-side) and `Moud.camera` (client-side).*
-
-### Core Methods
-
-| Method | Parameters | Description |
-| :--- | :--- | :--- |
-| **`enableCustomCamera()`** | *None* | Detaches the camera from the player, enabling scripted control. |
-| **`disableCustomCamera()`** | *None* | Re-attaches the camera to the player, restoring normal gameplay view. |
-| **`transitionTo()`** | `options: CameraOptions` | Smoothly animates the camera to a new state over a specified `duration`. |
-| **`snapTo()`** | `options: CameraOptions` | Instantly sets the camera's state to the values defined in `options`. |
-| **`isCustomCameraActive()`**| *None* | Returns `true` if the camera is currently under scripted control. |
-
-### Camera Options Object
-
-Both `transitionTo()` and `snapTo()` accept an options object with any of the following properties. Unspecified properties will retain their current value.
-
-| Property | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `position` | `Vector3` | Current | The target world position `{x, y, z}`. |
-| `yaw` | `number` | Current | The target horizontal rotation in degrees. |
-| `pitch` | `number` | Current | The target vertical rotation in degrees (-90 to 90). |
-| `roll` | `number` | Current | The target Z-axis tilt in degrees. |
-| `fov` | `number` | Current | The target Field of View. |
-| `duration` | `number` | `1000` | (*`transitionTo` only*) Duration of the animation in milliseconds. |
-| `easing` | `Function`| *ease-out* | (*`transitionTo` only*) An optional function `(p) => p` for custom animation curves. |
-
-### Utility Methods
-
 | Method | Description |
-| :--- | :--- |
-| **`getPlayerX/Y/Z()`** | Returns the **player's** current world coordinates. |
-| **`getPlayerYaw/Pitch()`** | Returns the **player's** current view rotation. |
-| **`getFov()`** | Returns the player's current game FOV setting. |
-| **`createVector3()`**| Creates a `Vector3` object for use in other camera methods. |
+| --- | --- |
+| `enableCustomCamera()` / `disableCustomCamera()` | Take/release control. |
+| `isCustomCameraActive()` | Check lock state. |
+| `snapTo(options)` | Immediately set position/yaw/pitch/roll/fov. |
+| `transitionTo(options)` | Animate across `duration` (ms) using optional `easing`. |
+| `getPlayerYaw/Pitch()` | Convenience getters for blending relative offsets. |
+
+`options` can include:
+
+- `position: Vector3`
+- `yaw`, `pitch`, `roll` (degrees)
+- `fov`
+- `duration` (ms, transition only)
+- `easing(progress) -> progress`
+

@@ -1,41 +1,54 @@
 # Moud Architecture
 
-Understanding Moud's architecture is key to developing IN THE RIGHT WAY. 
-Moud is built around a clean separation between the client and the server, which communicate via a custom network layer and share a common scripting logic.
+Moud is a TypeScript-first workflow built on four pillars:
 
-## Overview
+```
+┌────────────┐    ┌──────────────────┐    ┌───────────────┐
+│  CLI + SDK │    │  Minestom Server │    │ Fabric Client │
+│ (Node.js)  │ -> │  + GraalVM JS    │ -> │  + GraalVM JS │
+└────────────┘    └──────────────────┘    └───────────────┘
+         │                ▲    │                   ▲
+         └───── assets ───┴────┴── network engine ─┘
+```
 
-Here is a simplified diagram of the architecture:
-(coming soon)
+TypeScript is authored once and executed in both the standalone server and the Fabric client. Everything else bundling, asset streaming, state sync, hot reload is infrastructure that keeps those two runtimes in lockstep.
 
-### The Server (Moud Engine)
+## 1. Tooling Layer (packages/moud-cli + packages/sdk)
 
-The server is the heart of your game. It is a standalone Java application and **not** a Bukkit or Spigot plugin.
+- `packages/moud-cli` exposes `moud create/dev/pack`.  
+  - It installs Java 21 and the latest `moud-server.jar` automatically.  
+  - Then the transpiler (esbuild + AdmZip) bundles server and client scripts, caches them under `.moud/cache`, and generates a manifest/hash.  
 
--   **Foundation:** It uses [Minestom](https://minestom.net/), an open-source, lightweight Minecraft server built from the ground up.
+- `packages/sdk` is type-only. It injects global declarations (`api`, `Moud`, `Vector3`, `Player`, `SharedStore`, etc.) so IDEs understand every proxy exposed by the runtime.
 
--   **Game Logic:** Your game logic is written in JavaScript/TypeScript and executed by the **GraalVM** engine. This is where you handle events (`player.join`), modify the world (`world.setBlock`), and control entities.
+## 2. Server Runtime (server/)
 
--   **Authority:** The server is the source of truth. It manages the game state, validates actions, and decides what information to send to clients.
+The Server is **not** a Spigot/Bukkit plugin. It is its own Minestom distribution (`com.moud.App`) with the following services:
 
--   **Script Distribution:** When a Moud client connects, the server sends it a compressed pack (`.zip`) containing the necessary client scripts and assets (textures, sounds, animations).
 
-### The Client (Moud Mod)
+**Moud** acts as the orchestrator of the engine. It loads the project, initializes all managers and services, binds the scripting API, and controls hot-reloads. Once initialized, it runs your transpiled TypeScript through GraalVM, exposing a sandboxed scripting environment with familiar global helpers (`setTimeout`, `setInterval`, `requestAnimationFrame`) and a unified `api` object for interacting with the server.
 
-The client is a **Fabric mod** that players must install. Its role is to render the game and execute client-specific logic.
+At runtime, the system builds a bridge between scripts and the Minestom server through a series of **proxy layers**, ensuring safe and structured access to game entities, world data, and gameplay systems. Asset management, client bundling, and networking are handled then assets and client scripts are scanned, bundled, and streamed to players  during connection.
 
--   **Rendering:** It is responsible for everything visual. By integrating libraries like [Veil](https://github.com/FoundryMC/Veil) and [PlayerAnimationLib](https://github.com/ZigyTheBird/PlayerAnimationLibrary/tree/main), it can handle complex player animations, post-processing effects, dynamic lighting, and much more.
 
--   **JS Runtime:** Like the server, it has a GraalVM engine to execute the scripts it receives from the server.
+For development and diagnostics, Moud exposes optional services such as a live hot-reload endpoint, a profiling UI, and bridges for external creative tools. Together, these components create a cohesive runtime that allows live scripting, dynamic asset streaming, and low-latency server–client interaction, all without restarting the server.
 
--   **User Interface (UI):** Client scripts can create HTML/CSS-like UI elements that are rendered over the game, allowing for fully custom HUDs and menus.
 
--   **Responsiveness:** It handles direct player input (keyboard, mouse) and can have reactive logic without waiting for a server response for every action (e.g., for UI animations).
 
-### The Communication Layer
 
-The magic of Moud lies in the seamless communication between the client and server.
+## 3. Client Runtime (client-mod/)
 
--   **Custom Events:** The server can send targeted events to a client (`player.getClient().send(...)`), and the client can send events back to the server.
 
--   **Shared Values:** This is the primary state synchronization system. The server can set a value (e.g., `player.mana = 80`) in a shared "store" and the client is automatically notified of the change, allowing it to update the UI or other stuff in real-time.
+
+On the client side, players run the **fabric mod**, which mirrors the server’s scripting and service architecture. It embeds its own GraalVM runtime to execute TypeScript directly in Minecraft, providing the same `Moud` global environment and APIs available on the server. This allows scripts to share logic seamlessly across both ends, from gameplay systems to UI interactions etc...
+
+The client runtime manages all local systems for the player experience: rendering and post-processing (via Veil), lighting, audio playback and microphone streaming, cursors and cameras, input and gamepads, as well as a full UI overlay framework inspired by web layout models. These services are unified under the `Moud.*` namespace, exposing a coherent API surface.
+
+Networking is handled through a lightweight wrapper over plugin channels, translating data between client and server systems with minimal boilerplate. Shared state is continuously synchronized in both directions, allowing responsive updates and real-time collaboration between players and server logic.
+
+Overall, the client mod acts as the **mirror half of Moud**, turning the Minecraft client into a programmable environment where gameplay logic, UI, and visuals are fully scriptable and hot-reloadable .
+
+
+---
+
+The following pages dive into events, shared state, and the individual features exposed by these services.

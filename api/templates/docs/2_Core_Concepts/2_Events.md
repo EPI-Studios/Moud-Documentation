@@ -1,106 +1,99 @@
-# The Event System
+# Event System
 
-Moud's architecture is fundamentally **event-driven**. Your code does not run in a loop; instead, it reacts to events that occur in the game. This is the primary way to add interactivity to your world.
+Moud’s scripting surface is entirely event-driven. Instead of building your own game loop, you register callbacks with `api.on(eventName, handler)` and let the engine feed you fully-typed proxies (players, chat events, cursor deltas, etc.) straight from Minestom or the client runtime.
 
-## Listening for an Event
-
-The main method for listening to an event is `api.on()`. It takes the event name as its first argument and a callback function as its second.
-
-```typescript
-
-
-// Log a message every time a player joins
+```ts
 api.on('player.join', (player) => {
-  console.log(`${player.getName()} joined the server!`);
-  player.sendMessage('Welcome!');
+  player.sendMessage('Welcome to Moud!');
+  player.cursor.setColor(0.2, 0.8, 1.0);
 });
 
-// Handle chat messages
 api.on('player.chat', (event) => {
   const player = event.getPlayer();
-  const message = event.getMessage();
-
-  console.log(`[${player.getName()}]: ${message}`);
+  const text = event.getMessage().trim();
+  if (text === '!ping') {
+    event.cancel();               // stop vanilla broadcast
+    player.sendMessage('pong!');
+  }
 });
 ```
-  
 
-### Server-Side Events
+Behind the scenes, `EventDispatcher` listens to Minestom events, normalises them via `EventConverter`, wraps them in proxies, and executes your callback inside Graal with profiling metadata.
 
-| Event Name              | Description                                                   | Callback Argument(s)                |
-|-------------------------|---------------------------------------------------------------|-------------------------------------|
-| `player.join`           | Fired when a player enters the world (first spawn).           | PlayerSpawnEvent                    |
-| `player.leave`          | Fired when a player disconnects.                              | PlayerDisconnectEvent               |
-| `player.chat`           | Fired when a player sends a chat message.                     | PlayerChatEvent                     |
-| `player.click`          | Fired when a player clicks a button (mouse).                  | PlayerProxy, {button}               |
-| `player.mousemove`      | Fired when the player moves the mouse (deltaX/Y).             | PlayerProxy, {deltaX, deltaY}       |
-| `player.movement_state` | Fired when a movement packet updates all movement inputs.     | PlayerProxy, {forward, backward, left, right, jumping, sneaking, sprinting, onGround, speed} |
-| `player.jump`           | Fired when a player jumps.                                    | PlayerProxy                         |
-| `player.sneak.start`    | Fired when a player starts sneaking.                          | PlayerProxy                         |
-| `player.sneak.stop`     | Fired when a player stops sneaking.                           | PlayerProxy                         |
-| `player.sprint.start`   | Fired when a player starts sprinting.                         | PlayerProxy                         |
-| `player.sprint.stop`    | Fired when a player stops sprinting.                          | PlayerProxy                         |
-| `player.movement.start` | Fired when a player starts moving (any direction).            | PlayerProxy                         |
-| `player.movement.stop`  | Fired when a player stops moving.                             | PlayerProxy                         |
-| `player.land`           | Fired when a player lands on the ground.                      | PlayerProxy                         |
-| `player.airborne`       | Fired when a player leaves the ground (jump/fall).            | PlayerProxy                         |
-| `entity.interact`       | Fired when a player interacts with an entity.                 | EntityInteractionProxy              |
-| `script.event`          | Fired manually from scripts.                                  | PlayerProxy, String eventData       |
-| `block.break`           | Fired when a player breaks a block.                           | PlayerBlockBreakEvent               |
-| `block.place`           | Fired when a player places a block.                           | PlayerBlockPlaceEvent               |
+## Built-in Events
+
+| Category | Event | Arguments | Notes |
+| --- | --- | --- | --- |
+| Lifecycle | `server.load` | none | Fired once after all managers, bundles, and assets are ready. Perfect place to run bootstrap logic. |
+| Handshake | `moud.player.ready` | `PlayerProxy` | Fires when the Fabric client finished downloading bundles and reported readiness. |
+| Presence | `player.join`, `player.leave` | `PlayerProxy`, `PlayerLeaveEvent` | `player.join` triggers only on first spawn (after login & dimension assignment). |
+| Chat & Commands | `player.chat` | `ChatEventProxy` | Provides `.cancel()` plus message & player references. |
+| Movement | `player.move`, `player.movement_state` | `PlayerMoveEventProxy`, `(PlayerProxy, movementData)` | `player.movement_state` receives a second argument describing input buttons coming from the custom movement packet. |
+| Movement helpers | `player.jump`, `player.land`, `player.airborne`, `player.movement.start`, `player.movement.stop`, `player.sprint.start/stop`, `player.sneak.start/stop` | `PlayerProxy` | Emitted by `ServerMovementHandler` after analysing input flags. |
+| Mouse/Input | `player.mousemove`, `player.click` | `(PlayerProxy, { deltaX, deltaY })`, `(PlayerProxy, { button })` | Mouse data originates from the Fabric mod, so it works even when the camera is detached. |
+| Blocks | `block.break`, `block.place` | `BlockEventProxy` | Wraps Minestom’s block events with position, block id, and `.cancel()`. |
+| Entities | `entity.interact` | `EntityInteractionProxy` | Covers both right- and left-click interactions with scripted entities. |
+| Custom | any string sent via `ClientProxy.send()` or `Moud.network.sendToServer()` | depends | Lets you define your own event namespaces (e.g., `ui:button_press`, `audio:microphone:chunk`). |
+
+```hint info Proxies vs raw events
+Every argument you receive is a safe proxy (`PlayerProxy`, `ChatEventProxy`, etc.). They expose only the methods supported by the TypeScript SDK, so you never manipulate Minestom internals directly.
+```
 
 ## Cancellable Events
 
-Some events represent a player's "intent," such as sending a message or breaking a block. You can prevent the default action from occurring by using the .cancel() method.
+`ChatEventProxy`, `BlockEventProxy`, and future intent-based events implement `.cancel()` and other helpers. Use them to override vanilla behaviour:
 
-```hint warning "Cancelling an Event"  
-Calling event.cancel() will stop the vanilla Minecraft behavior. For example, if you cancel a player.chat event, the message will never appear in public chat, allowing you to process it as a custom command instead for example.  
-```
-
-For example
-```typescript
-// src/main.ts
-api.on('player.chat', (event) => {
-  const message = event.getMessage();
-
-  if (message.startsWith('!')) {
-    // prevent the command message from appearing in chat
+```ts
+api.on('block.break', (event) => {
+  if (event.getBlock().includes('diamond')) {
     event.cancel();
-
-    const player = event.getPlayer();
-    if (message === '/heal') {
-      // command logic
-      player.sendMessage('You have been healed!');
-    }
+    event.getPlayer().sendMessage('lmao not with bare hands');
   }
 });
 ```
-  
 
-## Custom Events (Client -> Server)
+## Client ↔ Server Custom Events
 
-Your client script can send data to the server, which will trigger a custom event.
+The scripting APIs expose two symmetrical helpers.
 
-**Client-Side:**
+### Client → Server
 
-```typescript
-// client/main.ts
-// Assume the player clicks a UI button
+```ts
+// client/hud.ts
 function onButtonClick() {
-  moudAPI.network.sendToServer('ui:button_click', { buttonId: 'start_game' });
+  Moud.network.sendToServer('ui:button_click', { buttonId: 'start' });
 }
 ```
-  
-**Server-Side:**
 
-```typescript
+```ts
 // src/main.ts
-api.on('ui:button_click', (player, data) => {
-  console.log(`Player ${player.getName()} clicked a button.`);
-  if (data.buttonId === 'start_game') {
-    // do the stuff it's supposed to do
+api.on('ui:button_click', (player, payloadJson) => {
+  const data = JSON.parse(payloadJson);
+  if (data.buttonId === 'start') {
+    startGameFor(player);
   }
 });
 ```
-  
 
+The Fabric mod serialises the payload, sends it over the `moud:wrapper` channel, `ServerNetworkManager` unwraps it, and `EventDispatcher` invokes your handler.
+
+### Server → Client
+
+```ts
+api.on('player.join', (player) => {
+  player.getClient().send('hud:show', {
+    title: 'Demo HUD',
+    sharedStore: 'playerUI'
+  });
+});
+```
+
+Client scripts listen via `Moud.network.on('hud:show', (payload) => { ... })` (see the UI part in the documentation). This is how lighting updates, audio commands, cursor state, and other server-driven systems reach the client runtime.
+
+## Profiling & Diagnostics
+
+- Every callback is wrapped with `ScriptExecutionMetadata`, so enabling the profiler (`moud dev --profile-ui`) shows how long each event handler takes.
+- `SharedValueInspectCommand` (`/sharedinspect`) dumps shared store state per player, so you can verify your events mutate the expected keys.
+- `DevUtilities` also expose `/networkprobe` to track custom event traffic in real time.
+
+With these infromations you can build the rest of your gameplay loop merely by reacting to events and pushing data through Shared Values or custom messages.

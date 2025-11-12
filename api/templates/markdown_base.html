@@ -6,13 +6,13 @@
     <title>{{ title }} - Moud Docs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/subdocs.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/hint.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.css">
 </head>
 <body>
     <svg width="0" height="0" style="position: absolute;" class="handdrawn-filter">
@@ -36,8 +36,35 @@
         </defs>
     </svg>
 
+    <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+        <svg viewBox="0 0 24 24">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+        <svg class="theme-icon sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="theme-icon moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+    </button>
+
+    <div class="mobile-overlay" id="mobile-overlay"></div>
+
     <div class="docs-container">
-        
+
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <a href="/" class="sidebar-home-link">← Home</a>
@@ -112,26 +139,143 @@
 
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="{{ url_for('static', filename='js/math-formatter.js') }}"></script>
-    <script>
-        hljs.highlightAll();
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            const turbulenceElement = document.querySelector('#handdrawnFilter feTurbulence');
-            const baseFrequency = 0.02;
-            const offsets = [-0.01, 0.005, -0.005, 0.01, 0, -0.008, 0.008];
-            let currentIndex = 0;
 
-            function animateHanddrawn() {
-                const offset = offsets[currentIndex] * 0.3;
-                const newFrequency = baseFrequency + offset;
-                turbulenceElement.setAttribute('baseFrequency', newFrequency.toString());
-                
-                currentIndex = (currentIndex + 1) % offsets.length;
+    <script>
+        var require = { paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.nls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Theme toggle functionality
+            const themeToggle = document.getElementById('theme-toggle');
+            const sunIcon = document.querySelector('.sun-icon');
+            const moonIcon = document.querySelector('.moon-icon');
+            const html = document.documentElement;
+
+            // Check for saved theme preference or default to light mode
+            const currentTheme = localStorage.getItem('theme') || 'light';
+            html.setAttribute('data-theme', currentTheme);
+
+            if (currentTheme === 'dark') {
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
             }
 
-            setInterval(animateHanddrawn, 150);
+            // Monaco Editor initialization
+            let monacoEditors = [];
+
+            function initMonacoEditors() {
+                const codeBlocks = document.querySelectorAll('pre code');
+
+                codeBlocks.forEach((codeBlock, index) => {
+                    const pre = codeBlock.parentElement;
+                    const code = codeBlock.textContent;
+
+                    // Detect language from class name
+                    let language = 'plaintext';
+                    const classList = Array.from(codeBlock.classList);
+                    const langClass = classList.find(cls => cls.startsWith('language-'));
+                    if (langClass) {
+                        language = langClass.replace('language-', '');
+                    }
+
+                    // Map common language names
+                    const languageMap = {
+                        'js': 'javascript',
+                        'ts': 'typescript',
+                        'py': 'python',
+                        'sh': 'shell',
+                        'bash': 'shell',
+                        'yml': 'yaml'
+                    };
+                    language = languageMap[language] || language;
+
+                    // Create Monaco container
+                    const monacoContainer = document.createElement('div');
+                    monacoContainer.className = 'monaco-editor-container';
+                    monacoContainer.style.height = `${Math.max(100, Math.min(600, (code.split('\n').length * 19) + 20))}px`;
+                    monacoContainer.id = `monaco-${index}`;
+
+                    // Replace pre with Monaco container
+                    pre.parentNode.replaceChild(monacoContainer, pre);
+
+                    // Create editor
+                    const editor = monaco.editor.create(monacoContainer, {
+                        value: code,
+                        language: language,
+                        theme: currentTheme === 'dark' ? 'vs-dark' : 'vs-light',
+                        readOnly: true,
+                        minimap: { enabled: false },
+                        scrollBeyondLastLine: false,
+                        lineNumbers: 'on',
+                        fontSize: 14,
+                        fontFamily: "'Space Mono', 'Courier New', monospace",
+                        lineDecorationsWidth: 0,
+                        lineNumbersMinChars: 3,
+                        renderLineHighlight: 'none',
+                        scrollbar: {
+                            vertical: 'auto',
+                            horizontal: 'auto',
+                            useShadows: false,
+                            verticalScrollbarSize: 10,
+                            horizontalScrollbarSize: 10
+                        },
+                        overviewRulerLanes: 0,
+                        hideCursorInOverviewRuler: true,
+                        overviewRulerBorder: false,
+                        automaticLayout: true
+                    });
+
+                    monacoEditors.push(editor);
+                });
+            }
+
+            // Initialize Monaco after a short delay
+            setTimeout(initMonacoEditors, 100);
+
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+                html.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+
+                // Toggle icons
+                sunIcon.classList.toggle('hidden');
+                moonIcon.classList.toggle('hidden');
+
+                // Update Monaco theme
+                monacoEditors.forEach(editor => {
+                    monaco.editor.setTheme(newTheme === 'dark' ? 'vs-dark' : 'vs-light');
+                });
+            });
+
+            // Mobile menu functionality
+            const menuToggle = document.getElementById('mobile-menu-toggle');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+
+            function toggleMenu() {
+                sidebar.classList.toggle('mobile-open');
+                overlay.classList.toggle('active');
+            }
+
+            menuToggle.addEventListener('click', toggleMenu);
+            overlay.addEventListener('click', toggleMenu);
+
+            // Close menu when clicking sidebar links
+            const sidebarLinks = sidebar.querySelectorAll('a');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth <= 768) {
+                        toggleMenu();
+                    }
+                });
+            });
         });
     </script>
 </body>

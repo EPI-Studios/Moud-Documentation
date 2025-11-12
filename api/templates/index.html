@@ -3,326 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moud - TypeScript-first Minecraft Scripting</title>
-    
-    
+    <title>Moud – TypeScript-first Minecraft Scripting</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-
-    <style>
-        :root {
-            --background-color: #f9fafb;
-            --grid-color: rgba(0, 0, 0, 0.04);
-            --text-primary: #111827;
-            --text-secondary: #6b7280;
-            --accent-color: #4f46e5;
-            --button-primary-bg: #111827;
-            --button-primary-text: #f9fafb;
-            --button-secondary-border: #d1d5db;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        @font-face {
-            font-family: 'Milker';
-            
-            src: url('/static/font/Milker.otf') format('opentype');
-            font-weight: normal;
-            font-style: normal;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-primary);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-
-            background-image:
-                linear-gradient(var(--grid-color) 1px, transparent 1px),
-                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-            background-size: 20px 20px;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 24px;
-        }
-
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 24px 0;
-            width: 100%;
-        }
-
-        .header-logo {
-            font-family: 'Milker', 'Inter', sans-serif;
-            font-size: 28px;
-            font-weight: normal;
-            letter-spacing: 0.05em; 
-            color: var(--text-primary);
-            text-decoration: none;
-        }
-
-        .header-nav {
-            display: flex;
-            gap: 32px;
-            align-items: center;
-        }
-
-        .header-nav a {
-            text-decoration: none;
-            color: var(--text-secondary);
-            font-weight: 500;
-            font-size: 14px;
-            transition: color 0.2s ease;
-        }
-
-        .header-nav a:hover {
-            color: var(--text-primary);
-        }
-
-        .main-content {
-            flex-grow: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 64px 0;
-        }
-
-        .hero-section {
-            max-width: 650px;
-        }
-
-        .logo {
-            font-family: 'Milker', 'Inter', sans-serif;
-            font-size: 120px;
-            font-weight: normal;
-            margin-bottom: 16px;
-            color: var(--text-primary);
-            filter: url(#handdrawnFilter);
-        }
-
-        .tagline {
-            font-size: 20px;
-            color: var(--text-secondary);
-            margin-bottom: 48px;
-            font-weight: 400;
-            max-width: 450px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .buttons {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: 1px solid transparent;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 16px;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-
-        }
-
-        .btn-primary {
-            background-color: var(--button-primary-bg);
-            color: var(--button-primary-text);
-        }
-        .btn-primary:hover {
-            opacity: 0.85;
-        }
-
-        .btn-secondary {
-            background-color: transparent;
-            color: var(--text-primary);
-            border-color: var(--button-secondary-border);
-        }
-        .btn-secondary:hover {
-            background-color: var(--background-color);
-            border-color: var(--text-primary);
-        }
-        
-        .icon {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
-        }
-
-        .github-container {
-            display: flex;
-            align-items: center;
-            border: 1px solid var(--button-secondary-border);
-            border-radius: 8px;
-            overflow: hidden;
-            background-color: #fff;
-            transition: border-color 0.2s ease;
-
-        }
-        .github-container:hover {
-            border-color: var(--text-primary);
-        }
-        
-        .btn-github {
-            border: none;
-            border-radius: 0;
-            padding: 12px 16px;
-        }
-        
-        .star-count {
-            padding: 12px 16px;
-            color: var(--text-secondary);
-            font-size: 14px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            border-left: 1px solid var(--button-secondary-border);
-            transition: border-color 0.2s ease;
-        }
-        .github-container:hover .star-count {
-            border-color: var(--text-primary);
-        }
-
-        .footer {
-            width: 100%;
-            padding: 32px 0;
-            text-align: center;
-            font-size: 14px;
-            color: var(--text-secondary);
-            border-top: 1px solid var(--grid-color);
-        }
-        .footer a {
-            color: var(--text-secondary);
-            text-decoration: underline;
-        }
-        .footer a:hover {
-            color: var(--text-primary);
-        }
-
-        @media (max-width: 768px) {
-            .header-nav { display: none; } 
-            .logo { font-size: 80px; }
-            .tagline { font-size: 18px; }
-            .buttons { flex-direction: column; align-items: center; }
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
 </head>
 <body>
-    <svg width="0" height="0" style="position: absolute;">
-        <defs>
-            <filter id="handdrawnFilter">
-                <feTurbulence
-                    type="turbulence"
-                    baseFrequency="0.02"
-                    numOctaves="2"
-                    seed="1"
-                    result="noise"
-                />
-                <feDisplacementMap
-                    in="SourceGraphic"
-                    in2="noise"
-                    scale="3"
-                    xChannelSelector="R"
-                    yChannelSelector="G"
-                />
-            </filter>
-        </defs>
-    </svg>
+    <svg width="0" height="0" style="position: absolute;"><defs>
+        <filter id="handdrawnFilter">
+            <feTurbulence type="turbulence" baseFrequency="0.02" numOctaves="2" seed="1" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+    </defs></svg>
+    
+    <main>
+        <section id="hero">
+            <video class="hero-video-bg" autoplay muted loop playsinline>
+                <source src="/static/videos/animation_example.mp4" type="video/mp4">
+            </video>
+            <div class="hero-overlay"></div>
+            <div id="hero-content">
+                <div class="hero-logo" aria-hidden="true">
+                    <svg class="hero-logo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 788.3 238.63" role="img">
+                        <path fill="currentColor" d="M225.32,143.16v20.81c0,8.55-4.56,16.46-11.96,20.75-28.83,17.97-57.66,35.94-86.49,53.91v-59.25l44.45-25.76-44.45-25.46v-55.19c28.79,16.46,57.59,32.92,86.38,49.38,7.46,4.27,12.07,12.21,12.07,20.81Z"/>
+                        <path fill="currentColor" d="M224.42,56.21c.3,18.74.6,37.48.91,56.21-32.81-19.66-65.63-39.31-98.44-58.97V0c32.51,18.74,65.02,37.48,97.54,56.21Z"/>
+                        <path fill="currentColor" d="M106.53,0C76.35,17.69,46.17,35.37,15.98,53.06,6.08,58.86,0,69.48,0,80.95v81.74c0,11.97,6.61,22.95,17.18,28.56,29.78,15.8,59.57,31.59,89.35,47.39V0Z"/>
+                        <g fill="currentColor">
+                            <path d="M415.11,60.03v111.07h-36.85v-44.54l-12.93,44.54h-31.12l-12.93-44.54v44.54h-36.84V60.03h42.53l22.8,68.21,22.8-68.21h42.53Z"/>
+                            <path d="M545.86,115.56c0,42.14-31.34,58.23-60.93,58.23s-60.93-16.08-60.93-58.23,31.34-58.23,60.93-58.23,60.93,16.08,60.93,58.23ZM509.6,115.56c0-20.64-13.16-27.12-24.66-27.12s-24.66,6.48-24.66,27.12,13.16,27.12,24.66,27.12,24.66-6.49,24.66-27.12Z"/>
+                            <path d="M664.86,60.03v66.79c0,25.99-14.33,46.94-55.82,46.94s-55.82-20.94-55.82-46.94V60.03h36.85v63.73c0,15.58,10.92,18.89,18.97,18.89s18.97-3.31,18.97-18.89v-63.73h36.85Z"/>
+                            <path d="M788.3,115.61c0,47.12-37.14,55.49-61.1,55.49h-50.94V60.03h50.94c23.96,0,61.1,8.46,61.1,55.58ZM750.35,115.61c0-21.03-15.97-24.47-29.86-24.47h-7.38v48.85h7.38c13.9,0,29.86-3.35,29.86-24.38Z"/>
+                        </g>
+                    </svg>
+                </div>
+                <span class="sr-only">MOUD</span>
+                <p class="tagline">The open-source, TypeScript-first engine for creative Minecraft development. Build server logic, client mods, and modern graphics in a unified workflow.</p>
+                <div class="buttons">
+                    <a href="https://moud.epistudios.fr/1_Getting_Started/1_Installation" target="_blank" class="btn btn-primary">Get Started</a>
+                    <a href="https://github.com/EPI-Studios/Moud" target="_blank" class="btn btn-secondary">View on GitHub <span id="github-stars">★</span></a>
+                </div>
+            </div>
+        </section>
 
-    <header class="header container">
-        </nav>
-    </header>
-
-    <main class="main-content container">
-        <div class="hero-section">
-            <h1 class="logo">MOUD</h1>
-            <p class="tagline">The open-source, TypeScript-first engine for Minecraft.</p>
-            
-            <div class="buttons">
-                <a href="/docs" class="btn btn-primary">
-                    Getting Started
-                </a>
-                <a href="https://discord.gg/nqK4ANvmfH" class="btn btn-secondary" target="_blank">
-                    <svg class="icon" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-                    Join Discord
-                </a>
-                <div class="github-container">
-                    <a href="https://github.com/EPI-Studios/Moud" class="btn btn-secondary btn-github" target="_blank" rel="noopener noreferrer">
-                        <svg class="icon" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-                        GitHub
-                    </a>
-                    <div class="star-count">
-                        <svg class="icon" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <span id="github-star-count">...</span>
+        <section id="what-is-moud">
+            <div class="container">
+                <div class="what-is-container">
+                    <div class="what-title">
+                        <span class="what-is">
+                           <span>What</span>
+                           <span>is</span>
+                        </span>
+                        <span class="moud">MOUD</span>
+                        <span class="question">?</span>
+                    </div>
+                    <div class="what-description">
+                        <p>A <span class="highlight">modern engine</span> that brings TypeScript to the heart of Minecraft development.</p>
+                        <p>Write <span class="highlight">server logic</span>, <span class="highlight">client mods</span>, and <span class="highlight">advanced shaders</span> in one unified language.</p>
+                        <p>Built for <span class="highlight">creators</span> who demand speed, safety, and perfomance (hehe)</p>
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
+
+        <section id="features" class="section">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="handdrawn-title">Why Moud?</h2>
+                    <p>Four reasons Moud reshapes the way you build.</p>
+                </div>
+            </div>
+            <div class="features-horizontal">
+                <div class="features-track">
+                    <div class="feature-slide">
+                        <div class="feature-number">01</div>
+                        <div class="feature-content">
+                            <h3>TypeScript Everywhere</h3>
+                            <p>Une seule langue pour serveur et client. Partagez code, types et logique sans switch mental.</p>
+                        </div>
+                    </div>
+                    <div class="feature-slide">
+                        <div class="feature-number">02</div>
+                        <div class="feature-content">
+                            <h3>Instant Hot Reload</h3>
+                            <p>No restarts. Save, test, and keep your worlds alive while code updates in place.</p>
+                        </div>
+                    </div>
+                    <div class="feature-slide">
+                        <div class="feature-number">03</div>
+                        <div class="feature-content">
+                            <h3>Advanced Rendering</h3>
+                            <p>Shaders, lighting, and post FX live in one pipeline. Veil delivers modern visuals without friction.</p>
+                        </div>
+                    </div>
+                    <div class="feature-slide">
+                        <div class="feature-number">04</div>
+                        <div class="feature-content">
+                            <h3>Reactive State Sync</h3>
+                            <p>Reliable shared state keeps every player in sync automatically so you can stay focused on gameplay.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="architecture" class="section">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="handdrawn-title">Built on Solid Foundations</h2>
+                    <p>A carefully designed stack that combines the best technologies for performance, flexibility, and developer experience.</p>
+                </div>
+                <div class="stack-container">
+                    <div class="stack-layer layer-typescript">
+                        <h3>Your TypeScript Code</h3>
+                        <p>Write game logic, mods, and systems in modern TypeScript with full type safety</p>
+                    </div>
+                    <div class="stack-layer layer-moud">
+                        <h3>Moud Core Engine</h3>
+                        <p>Hot reload system, state synchronization, and unified API layer</p>
+                    </div>
+                    <div class="stack-layer layer-graal">
+                        <h3>GraalVM Runtime</h3>
+                        <p>High-performance JavaScript engine with seamless Java interop</p>
+                    </div>
+                    <div class="stack-layer layer-minecraft">
+                        <h3>Minecraft + Fabric</h3>
+                        <p>Native Minecraft platform with full mod compatibility</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="supported">
+            <div class="supported-inner">
+                <span class="label">SUPPORTED AND MADE BY:</span>
+                <span class="epi">
+                    <span class="epi-main">
+                        EP<span class="i-container">I</span>
+                    </span>
+                    <span class="epi-alt">STUDIOS</span>
+                </span>
+            </div>
+        </section>
+
+        <section id="quickstart" class="section">
+            <div class="container">
+                 <div class="section-header">
+                    <h2 class="handdrawn-title">Get Started in Minutes</h2>
+                    <p>Install the CLI and launch your first Moud project with just a few commands.</p>
+                </div>
+                <div class="quickstart-steps">
+                    <div class="quickstart-step"><h3>1. Install the CLI</h3><p>Get the Moud command-line tool from npm.</p><code>npm install -g @epi-studio/moud-cli</code></div>
+                    <div class="quickstart-step"><h3>2. Create a Project</h3><p>Scaffold a new project in a new directory.</p><code>moud create my-game</code></div>
+                    <div class="quickstart-step"><h3>3. Run the Dev Server</h3><p>Start the server with hot-reload enabled.</p><code>cd my-game && moud dev</code></div>
+                </div>
+            </div>
+        </section>
     </main>
-    
-    <footer class="footer container">
-        <p>Released under the MIT License. Copyright © 2025 EPISTUDIOS PROJECT.</p>
+
+    <footer class="site-footer">
+        <div class="footer-simple">
+            <p>© EPI Studios — Moud documentation</p>
+            <p>Design & build by <a href="https://meekhasto.rest" target="_blank" rel="noopener">Meek</a></p>
+        </div>
     </footer>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const starCountEl = document.getElementById('github-star-count');
-            
-            fetch('https://api.github.com/repos/EPI-Studios/Moud') 
-                .then(response => response.json())
-                .then(data => {
-                    if (data.stargazers_count !== undefined) {
-                        const stars = data.stargazers_count;
-                        const formattedStars = stars >= 1000 ? (stars / 1000).toFixed(1) + 'k' : stars;
-                        starCountEl.textContent = formattedStars;
-                    } else {
-                        starCountEl.textContent = 'N/A';
-                    }
-                })
-                .catch(error => {
-                    console.error('Failed to fetch GitHub stars:', error);
-                    starCountEl.textContent = 'Error';
-                });
-
-            const turbulenceElement = document.querySelector('#handdrawnFilter feTurbulence');
-            const baseFrequency = 0.01;
-            const offsets = [0.005, -0.005, 0.01, 0, -0.008, 0.008];
-            let currentIndex = 0;
-
-            function animateHanddrawn() {
-                const offset = offsets[currentIndex] * 0.3;
-                const newFrequency = baseFrequency + offset;
-                turbulenceElement.setAttribute('baseFrequency', newFrequency.toString());
-                
-                currentIndex = (currentIndex + 1) % offsets.length;
-            }
-
-            setInterval(animateHanddrawn, 150);
-        });
-    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
+    <script src="{{ url_for('static', filename='js/landing.js') }}" defer></script>
 </body>
 </html>

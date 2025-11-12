@@ -1,101 +1,69 @@
 # Lighting System
 
-Moud's lighting system enables you to create dynamic lights that go beyond vanilla Minecraft's limitations. These lights are client-rendered and can be created, modified, and removed in real-time to enhance visual atmosphere and gameplay.
+Moud ships with a client-rendered lighting pipeline powered by [Veil](https://github.com/foundry-mc/veil). Lights are defined entirely from TypeScript on the server, replicated over the custom packet engine, and rendered per-player on the Fabric mod. You can spawn, move, and delete lights every tick without touching Minecraft’s limited vanilla lightmap.
 
-## Understanding the Lighting System
+## Architecture
 
-### How It Works
+1. Server scripts call `api.lighting.*` (backed by `LightingAPIProxy`).
+2. `ServerLightingManager` stores light definitions and broadcasts operations (`create`, `update`, `remove`) to connected clients via `ServerNetworkManager`.
+3. Clients feed those operations into Veil, which renders additive light volumes with per-pixel falloff and post-processing.
+4. When a player reconnects, `ServerLightingManager.syncLightsToPlayer` pushes the full catalogue so they instantly see the existing setup.
 
-The lighting system operates through a client-server architecture:
+`AxiomBridgeService` also mirrors light transforms to the Axiom external editor so you can drag gizmos in real time while the game runs.
 
-1. **Server creates lights** using the Lighting API
-2. **Client receives light data** via network packets
-3. **Client renders lights** using Veil's rendering pipeline
-4. **Lights affect world appearance** in real-time
+## Light Types
 
-### Light Types
+| Type | API | Description |
+| --- | --- | --- |
+| Point | `createPointLight(id, position, color, radius, brightness)` | Emits uniformly in all directions from a 3D point.  |
+| Area | `createAreaLight(id, position, direction, color, width, height, brightness)` | Emits from a rectangular plane with a facing direction. Perfect for monitors, windows, neon signs. |
+| Directional | _planned_ |        ~ |
 
-Moud supports two primary light types:
+`id` can be any positive long, but you are responsible for keeping it unique. A common pattern is to hash coordinates or entity UUIDs.
 
-- **Point Lights**: Emit light in all directions from a single point
-- **Area Lights**: Emit light from a rectangular surface area
-- **Direction Lights** : Will be implemented later.
+### Example
 
-## Creating Lights
+```ts
+const lighting = api.lighting;
 
-### Point Lights
+// torch
+lighting.createPointLight(
+  10,
+  api.math.vector3(4, 66, 2),
+  api.math.vector3(1.0, 0.75, 0.3),
+  7.5,
+  1.3
+);
 
-Point lights radiate light uniformly in all directions, like torches, lamps etc..
-
-```typescript
-api.on('player.join', (player) => {
-  const lighting = api.getLighting();
-  
-  lighting.createPointLight(
-    1,                              // unique light ID
-    api.vector3(10, 70, 10),        // world position
-    api.vector3(1.0, 0.8, 0.4),     // RGB color (0-1 range)
-    8.0,                            // radius of effect
-    1.2                             // brightness intensity
-  );
-});
-```
-
-### Area Lights
-
-Area lights emit from a rectangular surface, creating more realistic lighting for windows, screens, or large light sources.
-
-```typescript
+// holographic wall
 lighting.createAreaLight(
-  2,                              // unique light ID
-  api.vector3(15, 72, 15),        // position
-  api.vector3(0, -1, 0),          // direction vector (pointing down)
-  api.vector3(0.9, 0.95, 1.0),    // cool blue-white color
-  4.0,                            // width
-  2.0,                            // height
-  0.8                             // brightness
+  42,
+  api.math.vector3(-6, 70, -10),
+  api.math.vector3(0, -1, 0),
+  api.math.vector3(0.2, 0.7, 1.0),
+  6,
+  3,
+  0.9
 );
 ```
 
-### Light Parameters Explained
+### Updating & Removing
 
-**Light ID**: Each light requires a unique numeric identifier. Use systematic numbering to avoid conflicts.
-
-**Position**: World coordinates where the light is located. Use `api.vector3(x, y, z)`.
-
-**Color**: RGB values between 0.0 and 1.0. Common color examples:
-- Torch: `api.vector3(1.0, 0.8, 0.4)`
-- Moonlight: `api.vector3(0.6, 0.7, 1.0)`
-- Fire: `api.vector3(1.0, 0.4, 0.1)`
-- Magic: `api.vector3(0.8, 0.3, 1.0)`
-
-**Radius**: How far the light reaches. Larger values create softer, more distributed lighting.
-
-**Brightness**: Light intensity. Values above 1.0 create very bright lights that can wash out colors.
-
-## Light Control
-
-### Updating Lights
-
-Modify existing lights using the `updateLight()` method:
-
-```typescript
-lighting.updateLight(lightId, {
-  x: newX,
-  y: newY,
-  z: newZ,
-  r: newRed,
-  g: newGreen,
-  b: newBlue,
-  brightness: newBrightness,
-  radius: newRadius
+```ts
+lighting.updateLight(42, {
+  x: -4,
+  y: 72,
+  brightness: 1.5,
+  width: 8
 });
+
+lighting.removeLight(10);
 ```
 
-### Removing Lights
+`updateLight` accepts a plain object; any fields you include overwrite the previous ones. Common keys:
 
-Clean up lights when they're no longer needed:
-
-```typescript
-lighting.removeLight(lightId);
-```
+- `x/y/z`
+- `dirX/dirY/dirZ` (for area lights)
+- `r/g/b`
+- `radius`, `brightness`, `width`, `height`
+- `loop`, `pulse`, or any custom property you consume client-side
