@@ -18,7 +18,7 @@
     </defs></svg>
     
     <main>
-        <section id="hero">
+        <section id="hero" class="parallax-section">
             <video class="hero-video-bg" autoplay muted loop playsinline>
                 <source src="/static/videos/animation_example.mp4" type="video/mp4">
             </video>
@@ -46,9 +46,9 @@
             </div>
         </section>
 
-        <section id="what-is-moud">
+        <section id="what-is-moud" class="parallax-section">
             <div class="container">
-                <div class="what-is-container">
+                <div class="what-is-container" data-parallax-depth="4">
                     <div class="what-title">
                         <span class="what-is">
                            <span>What</span>
@@ -66,9 +66,9 @@
             </div>
         </section>
 
-        <section id="features" class="section">
+        <section id="features" class="section parallax-section">
             <div class="container">
-                <div class="section-header">
+                <div class="section-header" data-parallax-depth="5">
                     <h2 class="handdrawn-title">Why Moud?</h2>
                     <p>Four reasons Moud reshapes the way you build.</p>
                 </div>
@@ -79,7 +79,7 @@
                         <div class="feature-number">01</div>
                         <div class="feature-content">
                             <h3>TypeScript Everywhere</h3>
-                            <p>Une seule langue pour serveur et client. Partagez code, types et logique sans switch mental.</p>
+                            <p>One language for server and client.</p>
                         </div>
                     </div>
                     <div class="feature-slide">
@@ -93,7 +93,7 @@
                         <div class="feature-number">03</div>
                         <div class="feature-content">
                             <h3>Advanced Rendering</h3>
-                            <p>Shaders, lighting, and post FX live in one pipeline. Veil delivers modern visuals without friction.</p>
+                            <p>Shaders, lighting, and post-processing live in one pipeline.</p>
                         </div>
                     </div>
                     <div class="feature-slide">
@@ -107,26 +107,26 @@
             </div>
         </section>
 
-        <section id="architecture" class="section">
+        <section id="architecture" class="section parallax-section">
             <div class="container">
-                <div class="section-header">
+                <div class="section-header" data-parallax-depth="5">
                     <h2 class="handdrawn-title">Built on Solid Foundations</h2>
                     <p>A carefully designed stack that combines the best technologies for performance, flexibility, and developer experience.</p>
                 </div>
                 <div class="stack-container">
-                    <div class="stack-layer layer-typescript">
+                    <div class="stack-layer layer-typescript" data-parallax-depth="8">
                         <h3>Your TypeScript Code</h3>
                         <p>Write game logic, mods, and systems in modern TypeScript with full type safety</p>
                     </div>
-                    <div class="stack-layer layer-moud">
+                    <div class="stack-layer layer-moud" data-parallax-depth="12">
                         <h3>Moud Core Engine</h3>
                         <p>Hot reload system, state synchronization, and unified API layer</p>
                     </div>
-                    <div class="stack-layer layer-graal">
+                    <div class="stack-layer layer-graal" data-parallax-depth="16">
                         <h3>GraalVM Runtime</h3>
                         <p>High-performance JavaScript engine with seamless Java interop</p>
                     </div>
-                    <div class="stack-layer layer-minecraft">
+                    <div class="stack-layer layer-minecraft" data-parallax-depth="20">
                         <h3>Minecraft + Fabric</h3>
                         <p>Native Minecraft platform with full mod compatibility</p>
                     </div>
@@ -134,8 +134,8 @@
             </div>
         </section>
         
-        <section id="supported">
-            <div class="supported-inner">
+        <section id="supported" class="parallax-section">
+            <div class="supported-inner" data-parallax-depth="6">
                 <span class="label">SUPPORTED AND MADE BY:</span>
                 <span class="epi">
                     <span class="epi-main">
@@ -146,16 +146,47 @@
             </div>
         </section>
 
-        <section id="quickstart" class="section">
+        <section id="credits" class="section parallax-section">
             <div class="container">
-                 <div class="section-header">
+                <div class="section-header" data-parallax-depth="5">
+                    <h2 class="handdrawn-title">Thanks to the Builders</h2>
+                    <p>Moud stands on the shoulders of brilliant open-source projects. We're grateful for the communities who keep them alive.</p>
+                </div>
+                <div class="credits-grid">
+                    <article class="credit-card" data-parallax-depth="6">
+                        <div class="credit-title">Minestom</div>
+                        <p class="credit-copy">For providing the incredibly powerful and modern Minecraft server base.</p>
+                        <a href="https://minestom.net/" target="_blank" rel="noopener">Visit project ↗</a>
+                    </article>
+                    <article class="credit-card" data-parallax-depth="10">
+                        <div class="credit-title">GraalVM</div>
+                        <p class="credit-copy">For enabling high-performance JavaScript & TypeScript execution on the JVM.</p>
+                        <a href="https://www.graalvm.org/" target="_blank" rel="noopener">Visit project ↗</a>
+                    </article>
+                    <article class="credit-card" data-parallax-depth="14">
+                        <div class="credit-title">FabricMC</div>
+                        <p class="credit-copy">For the client-side modding toolchain and API that makes the Moud client possible.</p>
+                        <a href="https://fabricmc.net/" target="_blank" rel="noopener">Visit project ↗</a>
+                    </article>
+                    <article class="credit-card" data-parallax-depth="18">
+                        <div class="credit-title">Veil</div>
+                        <p class="credit-copy">For the advanced rendering capabilities that make custom shaders and post-processing easier to handle.</p>
+                        <a href="https://github.com/FoundryMC/Veil" target="_blank" rel="noopener">Visit project ↗</a>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section id="quickstart" class="section parallax-section">
+            <div class="container">
+                 <div class="section-header" data-parallax-depth="5">
                     <h2 class="handdrawn-title">Get Started in Minutes</h2>
                     <p>Install the CLI and launch your first Moud project with just a few commands.</p>
                 </div>
                 <div class="quickstart-steps">
-                    <div class="quickstart-step"><h3>1. Install the CLI</h3><p>Get the Moud command-line tool from npm.</p><code>npm install -g @epi-studio/moud-cli</code></div>
-                    <div class="quickstart-step"><h3>2. Create a Project</h3><p>Scaffold a new project in a new directory.</p><code>moud create my-game</code></div>
-                    <div class="quickstart-step"><h3>3. Run the Dev Server</h3><p>Start the server with hot-reload enabled.</p><code>cd my-game && moud dev</code></div>
+                    <div class="quickstart-step" data-parallax-depth="8"><h3>1. Install the CLI</h3><p>Get the Moud command-line tool from npm.</p><code>npm install -g @epi-studio/moud-cli</code></div>
+                    <div class="quickstart-step" data-parallax-depth="12"><h3>2. Create a Project</h3><p>Scaffold a new project in a new directory.</p><code>moud create my-game</code></div>
+                    <div class="quickstart-step" data-parallax-depth="16"><h3>3. Run the Dev Server</h3><p>Start the server with hot-reload enabled.</p><code>cd my-game && moud dev</code></div>
                 </div>
             </div>
         </section>

@@ -19,6 +19,50 @@ document.addEventListener('DOMContentLoaded', () => {
         easing: 'easeOutExpo'
     });
 
+    const heroLogo = document.querySelector('.hero-logo');
+    if (heroLogo) {
+        gsap.to(heroLogo, {
+            y: -60,
+            ease: 'none',
+            scrollTrigger: {
+                trigger: '#hero',
+                start: 'top top',
+                end: 'bottom top',
+                scrub: 2
+            }
+        });
+    }
+
+    const heroTagline = document.querySelector('#hero .tagline');
+    if (heroTagline) {
+        gsap.to(heroTagline, {
+            y: -40,
+            opacity: 0.5,
+            ease: 'none',
+            scrollTrigger: {
+                trigger: '#hero',
+                start: 'top top',
+                end: 'bottom top',
+                scrub: 2
+            }
+        });
+    }
+
+    const heroButtons = document.querySelector('#hero .buttons');
+    if (heroButtons) {
+        gsap.to(heroButtons, {
+            y: -30,
+            opacity: 0.3,
+            ease: 'none',
+            scrollTrigger: {
+                trigger: '#hero',
+                start: 'top top',
+                end: 'bottom top',
+                scrub: 2
+            }
+        });
+    }
+
     const playWhatIsIn = () => {
         const moudEl = document.querySelector('.what-title .moud');
         const trembleElements = document.querySelectorAll('.what-title .what-is, .what-title .question');
@@ -84,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ScrollTrigger.create({
         trigger: '#what-is-moud',
-        start: 'top 70%',
+        start: 'top 60%',
         onEnter: playWhatIsIn,
         onEnterBack: playWhatIsIn,
         onLeaveBack: resetWhatIs
@@ -138,16 +182,114 @@ document.addEventListener('DOMContentLoaded', () => {
         featureResizeTimer = setTimeout(updateFeatureScroll, 150);
     });
 
+    const parallaxSections = gsap.utils.toArray('.parallax-section');
+    parallaxSections.forEach((section) => {
+        gsap.to(section, {
+            yPercent: -10,
+            ease: 'none',
+            scrollTrigger: {
+                trigger: section,
+                start: 'top bottom',
+                end: 'bottom top',
+                scrub: 2
+            }
+        });
+    });
+
+    const parallaxElements = gsap.utils.toArray('[data-parallax-depth]');
+    parallaxElements.forEach((el) => {
+        const depth = parseFloat(el.dataset.parallaxDepth) || 8;
+        gsap.fromTo(
+            el,
+            { y: depth * 4, opacity: 0 },
+            {
+                y: 0,
+                opacity: 1,
+                ease: 'power2.out',
+                scrollTrigger: {
+                    trigger: el,
+                    start: 'top 95%',
+                    end: 'top 20%',
+                    scrub: 2
+                }
+            }
+        );
+    });
+
+    document.querySelectorAll('.feature-slide').forEach((slide, index) => {
+        const featureNumber = slide.querySelector('.feature-number');
+        const featureContent = slide.querySelector('.feature-content');
+
+        if (featureNumber) {
+            gsap.fromTo(
+                featureNumber,
+                { scale: 0.5, opacity: 0.3 },
+                {
+                    scale: 1,
+                    opacity: 0.08,
+                    ease: 'power2.out',
+                    scrollTrigger: {
+                        trigger: slide,
+                        start: 'top 90%',
+                        end: 'top 20%',
+                        scrub: 2
+                    }
+                }
+            );
+        }
+
+        if (featureContent) {
+            const h3 = featureContent.querySelector('h3');
+            const p = featureContent.querySelector('p');
+
+            if (h3) {
+                gsap.fromTo(
+                    h3,
+                    { y: 80, opacity: 0 },
+                    {
+                        y: 0,
+                        opacity: 1,
+                        ease: 'power2.out',
+                        scrollTrigger: {
+                            trigger: slide,
+                            start: 'top 85%',
+                            end: 'top 25%',
+                            scrub: 2
+                        }
+                    }
+                );
+            }
+
+            if (p) {
+                gsap.fromTo(
+                    p,
+                    { y: 100, opacity: 0 },
+                    {
+                        y: 0,
+                        opacity: 1,
+                        ease: 'power2.out',
+                        scrollTrigger: {
+                            trigger: slide,
+                            start: 'top 80%',
+                            end: 'top 30%',
+                            scrub: 2
+                        }
+                    }
+                );
+            }
+        }
+    });
+
     ScrollTrigger.create({
         trigger: '.stack-container',
-        start: 'top 70%',
+        start: 'top 60%',
         onEnter: () => {
             anime({
                 targets: '.stack-layer',
                 opacity: [0, 1],
-                translateY: [30, 0],
-                delay: anime.stagger(200),
-                duration: 800,
+                translateY: [60, 0],
+                delay: anime.stagger(300),
+                duration: 1000,
                 easing: 'easeOutQuad'
             });
         },
@@ -156,19 +298,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ScrollTrigger.create({
         trigger: '#quickstart',
-        start: 'top 70%',
+        start: 'top 60%',
         onEnter: () => {
             anime({
                 targets: '.quickstart-step',
                 opacity: [0, 1],
-                translateY: [50, 0],
-                delay: anime.stagger(200),
-                duration: 600,
+                translateY: [80, 0],
+                delay: anime.stagger(300),
+                duration: 800,
                 easing: 'easeOutQuad'
             });
         },
         once: true
     });
+
+    ScrollTrigger.create({
+        trigger: '#credits',
+        start: 'top 55%',
+        onEnter: () => {
+            anime({
+                targets: '.credit-card',
+                opacity: [0, 1],
+                scale: [0.9, 1],
+                translateY: [60, 0],
+                delay: anime.stagger(200, { start: 150 }),
+                duration: 900,
+                easing: 'easeOutQuad'
+            });
+        },
+        once: true
+    });
+
+    const footer = document.querySelector('.site-footer');
+    if (footer) {
+        gsap.fromTo(
+            footer,
+            { y: 100, opacity: 0.5 },
+            {
+                y: 0,
+                opacity: 1,
+                ease: 'power2.out',
+                scrollTrigger: {
+                    trigger: footer,
+                    start: 'top 95%',
+                    end: 'top 40%',
+                    scrub: 2
+                }
+            }
+        );
+    }
 
     const supportedReveal = (() => {
         let played = false;
