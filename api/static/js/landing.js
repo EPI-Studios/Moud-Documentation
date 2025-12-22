@@ -1,15 +1,42 @@
 document.addEventListener('DOMContentLoaded', () => {
     gsap.registerPlugin(ScrollTrigger);
 
-    const turbulence = document.querySelector('#handdrawnFilter feTurbulence');
-    let seed = 1;
-    setInterval(() => {
-        seed += 1;
-        if (turbulence) {
-            turbulence.setAttribute('seed', seed);
-        }
-    }, 100);
+    const lenis = new Lenis({
+        duration: 1.2,
+        easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        smoothWheel: true,
+        wheelMultiplier: 1,
+    });
 
+    lenis.on('scroll', ScrollTrigger.update);
+
+    gsap.ticker.add((time) => {
+        lenis.raf(time * 1000);
+    });
+
+    gsap.ticker.lagSmoothing(0);
+
+
+    const turbulence = document.querySelector('#handdrawnFilter feTurbulence');
+    if (turbulence) {
+        let frameCount = 0;
+        gsap.ticker.add(() => {
+            frameCount++;
+            if (frameCount % 50 === 0) {
+                turbulence.setAttribute('seed', Math.round(Math.random() * 100));
+            }
+        });
+    }
+    const cards = document.querySelectorAll('.spotlight-card');
+    cards.forEach(card => {
+        card.addEventListener('mousemove', e => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            card.style.setProperty('--mouse-x', `${x}px`);
+            card.style.setProperty('--mouse-y', `${y}px`);
+        });
+    });
     anime({
         targets: '#hero-content > *',
         opacity: [0, 1],
@@ -28,41 +55,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 trigger: '#hero',
                 start: 'top top',
                 end: 'bottom top',
-                scrub: 2
+                scrub: true
             }
         });
     }
-
-    const heroTagline = document.querySelector('#hero .tagline');
-    if (heroTagline) {
-        gsap.to(heroTagline, {
-            y: -40,
-            opacity: 0.5,
-            ease: 'none',
-            scrollTrigger: {
-                trigger: '#hero',
-                start: 'top top',
-                end: 'bottom top',
-                scrub: 2
-            }
-        });
-    }
-
-    const heroButtons = document.querySelector('#hero .buttons');
-    if (heroButtons) {
-        gsap.to(heroButtons, {
-            y: -30,
-            opacity: 0.3,
-            ease: 'none',
-            scrollTrigger: {
-                trigger: '#hero',
-                start: 'top top',
-                end: 'bottom top',
-                scrub: 2
-            }
-        });
-    }
-
     const playWhatIsIn = () => {
         const moudEl = document.querySelector('.what-title .moud');
         const trembleElements = document.querySelectorAll('.what-title .what-is, .what-title .question');
@@ -70,9 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         anime.set(moudEl, { opacity: 0, scale: 2.5 });
         anime.set(trembleElements, { opacity: 0, translateY: 10 });
 
-        const tl = anime.timeline({
-            easing: 'easeOutExpo'
-        });
+        const tl = anime.timeline({ easing: 'easeOutExpo' });
 
         tl.add({
             targets: trembleElements,
@@ -94,17 +88,13 @@ document.addEventListener('DOMContentLoaded', () => {
             targets: trembleElements,
             duration: 800,
             translateX: [
-                { value: () => anime.random(-8, 8), duration: 60 },
-                { value: () => anime.random(-8, 8), duration: 60 },
-                { value: () => anime.random(-8, 8), duration: 60 },
-                { value: () => anime.random(-8, 8), duration: 60 },
+                { value: () => anime.random(-6, 6), duration: 60 },
+                { value: () => anime.random(-6, 6), duration: 60 },
                 { value: 0, duration: 400 }
             ],
             rotate: [
-                { value: () => anime.random(-5, 5), duration: 60 },
-                { value: () => anime.random(-5, 5), duration: 60 },
-                { value: () => anime.random(-5, 5), duration: 60 },
-                { value: () => anime.random(-5, 5), duration: 60 },
+                { value: () => anime.random(-4, 4), duration: 60 },
+                { value: () => anime.random(-4, 4), duration: 60 },
                 { value: 0, duration: 400 }
             ],
             easing: 'easeInOutSine',
@@ -133,20 +123,20 @@ document.addEventListener('DOMContentLoaded', () => {
         onEnterBack: playWhatIsIn,
         onLeaveBack: resetWhatIs
     });
-
     const track = document.querySelector('.features-track');
     let featureScroll = null;
-    let featureResizeTimer;
 
     const enableFeatureScroll = () => {
+        const scrollAmount = track.scrollWidth - window.innerWidth;
+
         featureScroll = gsap.to(track, {
-            x: () => -(track.scrollWidth - window.innerWidth),
+            x: -scrollAmount,
             ease: 'none',
             scrollTrigger: {
                 trigger: '#features',
                 start: 'top top',
-                end: () => `+=${track.scrollWidth - window.innerWidth}`,
-                scrub: 1,
+                end: () => `+=${scrollAmount + window.innerHeight}`,
+                scrub: true,
                 pin: true,
                 anticipatePin: 1,
                 invalidateOnRefresh: true
@@ -154,44 +144,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    const disableFeatureScroll = () => {
-        if (featureScroll) {
-            featureScroll.scrollTrigger.kill();
-            featureScroll.kill();
-            featureScroll = null;
-        }
-        if (track) {
-            gsap.set(track, { clearProps: 'transform' });
-        }
-    };
+    if (window.innerWidth >= 1024 && track) {
+        enableFeatureScroll();
+    }
 
-    const updateFeatureScroll = () => {
-        if (!track) return;
-        if (window.innerWidth >= 1024) {
-            if (!featureScroll) {
-                enableFeatureScroll();
-            }
-        } else {
-            disableFeatureScroll();
-        }
-    };
-
-    updateFeatureScroll();
     window.addEventListener('resize', () => {
-        clearTimeout(featureResizeTimer);
-        featureResizeTimer = setTimeout(updateFeatureScroll, 150);
+        ScrollTrigger.refresh();
     });
-
     const parallaxSections = gsap.utils.toArray('.parallax-section');
     parallaxSections.forEach((section) => {
         gsap.to(section, {
-            yPercent: -10,
+            yPercent: -3,
             ease: 'none',
             scrollTrigger: {
                 trigger: section,
                 start: 'top bottom',
                 end: 'bottom top',
-                scrub: 2
+                scrub: true 
             }
         });
     });
@@ -199,198 +168,164 @@ document.addEventListener('DOMContentLoaded', () => {
     const parallaxElements = gsap.utils.toArray('[data-parallax-depth]');
     parallaxElements.forEach((el) => {
         const depth = parseFloat(el.dataset.parallaxDepth) || 8;
+        const adjustedDepth = depth * 0.5; 
+        
         gsap.fromTo(
             el,
-            { y: depth * 4, opacity: 0 },
+            { y: adjustedDepth * 4, opacity: 0 },
             {
                 y: 0,
                 opacity: 1,
                 ease: 'power2.out',
                 scrollTrigger: {
                     trigger: el,
-                    start: 'top 95%',
+                    start: 'top 85%',
                     end: 'top 20%',
-                    scrub: 2
+                    scrub: true
                 }
             }
         );
     });
-
-    document.querySelectorAll('.feature-slide').forEach((slide, index) => {
+    document.querySelectorAll('.feature-slide').forEach((slide) => {
         const featureNumber = slide.querySelector('.feature-number');
         const featureContent = slide.querySelector('.feature-content');
 
         if (featureNumber) {
-            gsap.fromTo(
-                featureNumber,
-                { scale: 0.5, opacity: 0.3 },
-                {
-                    scale: 1,
-                    opacity: 0.08,
-                    ease: 'power2.out',
-                    scrollTrigger: {
-                        trigger: slide,
-                        start: 'top 90%',
-                        end: 'top 20%',
-                        scrub: 2
-                    }
-                }
+            gsap.fromTo(featureNumber,
+                { scale: 0.8, opacity: 0 },
+                { scale: 1, opacity: 0.1, ease: 'power2.out', scrollTrigger: { trigger: slide, start: 'left center', containerAnimation: featureScroll, scrub: true }}
             );
         }
-
-        if (featureContent) {
-            const h3 = featureContent.querySelector('h3');
-            const p = featureContent.querySelector('p');
-
-            if (h3) {
-                gsap.fromTo(
-                    h3,
-                    { y: 80, opacity: 0 },
-                    {
-                        y: 0,
-                        opacity: 1,
-                        ease: 'power2.out',
-                        scrollTrigger: {
-                            trigger: slide,
-                            start: 'top 85%',
-                            end: 'top 25%',
-                            scrub: 2
-                        }
-                    }
-                );
-            }
-
-            if (p) {
-                gsap.fromTo(
-                    p,
-                    { y: 100, opacity: 0 },
-                    {
-                        y: 0,
-                        opacity: 1,
-                        ease: 'power2.out',
-                        scrollTrigger: {
-                            trigger: slide,
-                            start: 'top 80%',
-                            end: 'top 30%',
-                            scrub: 2
-                        }
-                    }
-                );
-            }
-        }
     });
+    const revealSection = (selector) => {
+        ScrollTrigger.create({
+            trigger: selector,
+            start: 'top 70%',
+            onEnter: () => {
+                anime({
+                    targets: `${selector} > div, ${selector} .stack-layer, ${selector} .quickstart-step, ${selector} .credit-card`,
+                    opacity: [0, 1],
+                    translateY: [40, 0],
+                    delay: anime.stagger(100),
+                    duration: 800,
+                    easing: 'easeOutQuad'
+                });
+            },
+            once: true
+        });
+    };
 
-    ScrollTrigger.create({
-        trigger: '.stack-container',
-        start: 'top 60%',
-        onEnter: () => {
-            anime({
-                targets: '.stack-layer',
-                opacity: [0, 1],
-                translateY: [60, 0],
-                delay: anime.stagger(300),
-                duration: 1000,
-                easing: 'easeOutQuad'
-            });
-        },
-        once: true
-    });
-
-    ScrollTrigger.create({
-        trigger: '#quickstart',
-        start: 'top 60%',
-        onEnter: () => {
-            anime({
-                targets: '.quickstart-step',
-                opacity: [0, 1],
-                translateY: [80, 0],
-                delay: anime.stagger(300),
-                duration: 800,
-                easing: 'easeOutQuad'
-            });
-        },
-        once: true
-    });
-
-    ScrollTrigger.create({
-        trigger: '#credits',
-        start: 'top 55%',
-        onEnter: () => {
-            anime({
-                targets: '.credit-card',
-                opacity: [0, 1],
-                scale: [0.9, 1],
-                translateY: [60, 0],
-                delay: anime.stagger(200, { start: 150 }),
-                duration: 900,
-                easing: 'easeOutQuad'
-            });
-        },
-        once: true
-    });
-
+    revealSection('.stack-container');
+    revealSection('.quickstart-steps');
+    revealSection('.credits-grid');
     const footer = document.querySelector('.site-footer');
     if (footer) {
-        gsap.fromTo(
-            footer,
-            { y: 100, opacity: 0.5 },
-            {
-                y: 0,
-                opacity: 1,
-                ease: 'power2.out',
-                scrollTrigger: {
-                    trigger: footer,
-                    start: 'top 95%',
-                    end: 'top 40%',
-                    scrub: 2
-                }
-            }
+        gsap.fromTo(footer,
+            { y: 20, opacity: 0 },
+            { y: 0, opacity: 1, duration: 0.5, scrollTrigger: { trigger: footer, start: 'top 95%' }}
         );
     }
-
-    const supportedReveal = (() => {
-        let played = false;
-        return () => {
-            if (played) return;
-            played = true;
-            const supportedInner = document.querySelector('.supported-inner');
-            if (supportedInner) {
-                supportedInner.classList.add('visible');
-            }
-            const epi = document.querySelector('.epi');
-            if (epi) {
-                epi.classList.add('animate-i-dot');
-            }
-        };
-    })();
-
     const starsEl = document.getElementById('github-stars');
+    const epi = document.querySelector('.epi');
+    const supportedInner = document.querySelector('.supported-inner');
+
+    if (supportedInner) {
+         ScrollTrigger.create({
+            trigger: '#supported',
+            start: 'top 80%',
+            onEnter: () => {
+                supportedInner.classList.add('visible');
+                if (epi) epi.classList.add('animate-i-dot');
+            },
+            once: true
+        });
+    }
+
     if (starsEl) {
         fetch('https://api.github.com/repos/EPI-Studios/Moud')
             .then((r) => (r.ok ? r.json() : Promise.reject()))
             .then((data) => {
-                if (data && typeof data.stargazers_count === 'number') {
+                if (data?.stargazers_count) {
                     const fmt = new Intl.NumberFormat('en', { notation: 'compact' });
                     starsEl.textContent = `${fmt.format(data.stargazers_count)}★`;
-                    supportedReveal();
                 }
             })
-            .catch(() => {
-                starsEl.style.display = 'none';
-                supportedReveal();
-            });
-    } else {
-        supportedReveal();
+            .catch(() => starsEl.style.display = 'none');
     }
 
-    const refresh = () => {
-        try {
-            ScrollTrigger.refresh();
-        } catch (error) {
-            console.error(error);
-        }
+    window.addEventListener('load', () => ScrollTrigger.refresh());
+
+    const initTerminal = () => {
+        const termBody = document.querySelector('#terminal-content');
+        const typeWriterSpan = document.querySelector('#typewriter');
+        if (!termBody || !typeWriterSpan) return;
+
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        
+        const addLine = (html, className = '') => {
+            const cursorLine = termBody.querySelector('.cursor-line');
+            if(cursorLine) cursorLine.remove();
+            const div = document.createElement('div');
+            div.className = `term-line ${className}`;
+            div.innerHTML = html;
+            termBody.appendChild(div);
+            const newCursor = document.createElement('div');
+            newCursor.className = 'cursor-line';
+            newCursor.innerHTML = `<span class="prompt">user@moud:~$</span><span id="typewriter"></span><span class="cursor">█</span>`;
+            termBody.appendChild(newCursor);
+            termBody.scrollTop = termBody.scrollHeight;
+        };
+
+        const typeCommand = async (cmd) => {
+            const target = document.querySelector('#typewriter');
+            if(!target) return;
+            
+            target.textContent = '';
+            for (let i = 0; i < cmd.length; i++) {
+                target.textContent += cmd[i];
+                await wait(Math.random() * 50 + 30);
+            }
+            await wait(300);
+            addLine(`<span class="prompt">user@moud:~$</span> ${cmd}`, 'cmd-echo');
+        };
+
+        const runSequence = async () => {
+            termBody.innerHTML = `<div class="cursor-line"><span class="prompt">user@moud:~$</span><span id="typewriter"></span><span class="cursor">█</span></div>`;
+            await wait(1000);
+            await typeCommand('npm install -g @epi-studio/moud-cli@latest');
+            addLine('added 136 packages in 12s', 'success');
+            addLine('41 packages are looking for funding');
+            addLine('  run `npm fund` for details ');
+            await wait(800);
+            await typeCommand('moud create');
+            addLine('What is the name of your game?', 'dim');
+            await wait(400);
+            await typeCommand('minecraft');
+            addLine('Choose a project template:');
+            addLine('TypeScript (Default)');
+            await typeCommand('Typescript');
+            addLine('Creating project directory...', 'success');
+            addLine('Creating package.json...', 'info');
+            addLine('Creating main server file..');
+            addLine('Creating client script...');
+            addLine('Project minecraft created successfully!')
+            await wait(800);
+            await typeCommand('cd minecraft && moud dev');
+            addLine('Starting Moud Engine...', 'dim');
+            await wait(500);
+            addLine('22:20:25.145 [main] INFO  MOUD ENGINE -- Server started on port 25565', 'dim');
+
+            await wait(5000);
+            runSequence();
+        };
+
+        ScrollTrigger.create({
+            trigger: '#quickstart',
+            start: 'top 60%',
+            onEnter: () => runSequence(),
+            once: true
+        });
     };
 
-    window.addEventListener('load', refresh);
-    window.addEventListener('pageshow', refresh);
+    initTerminal();
 });

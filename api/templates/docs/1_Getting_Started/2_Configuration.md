@@ -16,7 +16,7 @@ my-game/
 
 ## package.json
 
-`moud:main` is the only required Moud-specific field—it points at the server entry point the engine should execute. Everything else follows standard Node conventions.
+`moud:main` is the only required Moud-specific field, it points at the server entry point the engine should execute. Everything else follows standard Node conventions.
 
 ```jsonc
 {

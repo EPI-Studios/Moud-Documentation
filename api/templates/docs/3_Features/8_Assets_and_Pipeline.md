@@ -1,6 +1,6 @@
 # Assets, Bundles & Tooling Pipeline
 
-Moud’s tooling automates everything between your TypeScript source and the running server/client: compiling scripts, packaging assets, streaming client bundles, and hot reloading. Understanding these pieces helps when you add new asset types or ship production builds.
+Moud’s tooling automates everything between your TypeScript source and the running server/client: compiling scripts, packaging assets, streaming client bundles, and hot reloading. 
 
 ## Directory Conventions
 
@@ -9,7 +9,7 @@ project/
 ├─ src/          # Server scripts (TS/JS)
 ├─ client/       # Optional client-only scripts (TS/JS)
 ├─ assets/       # Textures, models, shaders, sounds, animation JSON, data files
-├─ .moud/        # CLI cache: server bundle, client bundle, manifest
+├─ .moud/        # CLI cache: server bundle, client bundle, manifest, scene etc
 └─ dist/         # Created by `moud pack`
 ```
 
@@ -19,10 +19,10 @@ project/
 
 | Extension | Type | Example usage |
 | --- | --- | --- |
-| `.png`, `.jpg` | Texture | `world.createDisplay({ content: { type: 'image', source: 'moud:textures/logo.png' }})` |
-| `.obj`, `.gltf`, `.fbx` | Model | `world.createModel({ model: 'moud:models/capsule.obj' })` |
-| `.glsl`, `.vert`, `.frag` | Shader | `Moud.rendering.loadShader('moud:shaders/outline.frag')` |
-| `.ogg`, `.wav`, `.mp3` | Sound | `player.audio.play({ sound: 'moud:sfx/door' })` |
+| `.png`, `.jpg` | Texture | `api.world.createDisplay({ content: { type: 'image', source: 'moud:textures/logo.png' }})` |
+| `.obj` | Model | `api.world.createModel({ model: 'moud:models/capsule.obj' })` |
+| `.glsl`, `.vert`, `.frag` | Shader | `api.assets.loadShader('moud:shaders/outline.frag')` |
+| `.ogg` | Sound | `player.getAudio().play({ id: 'sfx:door', sound: 'moud:sfx/door' })` |
 | `.json` | Data (or animations) | PlayerAnimation files are repathed automatically. |
 
 IDs follow `namespace:path`. The namespace is the folder directly under `assets/`.
@@ -47,15 +47,13 @@ When a player joins:
 3. If the client already has that hash cached, it only loads metadata; otherwise it downloads the entire bundle.
 4. Once the Fabric mod reports `ClientReady`, systems like lighting, shared values, and displays resync.
 
-This is why you rarely need to restart clients while iterating the CLI hot reload triggers the server to re-stream the bundle immediately.
-
 ## Asset Proxy on the Server
 
 Access assets at runtime without touching the filesystem:
 
 ```ts
-const shader = Moud.assets.loadShader('moud:shaders/postprocess.frag');
-const data = JSON.parse(Moud.assets.loadData('moud:data/dialogue.json').getContent());
+const shader = api.assets.loadShader('moud:shaders/postprocess.frag');
+const data = JSON.parse(api.assets.loadData('moud:data/dialogue.json').getContent());
 ```
 
 `AssetManager` caches loaded files in memory, so repeated calls are cheap.
@@ -69,4 +67,3 @@ The Java server exposes `http://localhost:<port+1000>/moud/api/reload`. `moud de
 - The old `JavaScriptRuntime` shuts down, assets refresh, the new runtime boots, and scripts execute. All of this happens asynchronously, so players stay connected.
 
 If the reload fails, the CLI prints a warning and you can restart manually.
-

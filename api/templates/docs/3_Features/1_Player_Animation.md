@@ -1,16 +1,16 @@
 
 # Player Animation System
 
-Moud’s player animation stack combines [PlayerAnimationLib](https://github.com/ZigyTheBird/PlayerAnimationLibrary), the Fabric mod, and a set of high-level proxies exposed through `player.animation`. You get two complementary approaches:
+Moud’s player animationuse [PlayerAnimationLib](https://github.com/ZigyTheBird/PlayerAnimationLibrary), the Fabric mod, and a set of proxies exposed through `player.animation`. You get two complementary approaches:
 
 1. **Keyframe playback** – export Blockbench animations, package them in `assets/`, and trigger them by id with easing/fade support.
 2. **Procedural control** – manipulate any body part (position/rotation/scale/visibility) per tick, override first-person limbs, and smoothly blend between poses.
 
-You can mix both; for example play a keyframe animation while procedurally steering the head toward a target.
+You can mix both; for example play a keyframe animation while procedurally moving the head toward a target.
 
 ## Preparing Assets
 
-1. Animate a standard player model in Blockbench.
+1. Animate a player model in Blockbench.
 2. Export as **Bedrock Animation** (`.json`).
 3. Place the file under `assets/<namespace>/player_animations/` or simply `assets/<namespace>/animations/`. `ClientScriptManager` repaths files automatically when packaging.
 4. The animation id becomes `<namespace>:<filename>`. Example: `assets/moud/animations/wave.json` → `moud:wave`.
@@ -32,8 +32,6 @@ api.on('player.chat', (event) => {
   }
 });
 ```
-
- `ServerNetworkManager` sends either `S2C_PlayPlayerAnimationPacket` or `S2C_PlayPlayerAnimationWithFadePacket`. PlayerAnimationLib blends the active animation with vanilla locomotion for natural results.
 
 ## Procedural Posing
 
@@ -72,7 +70,7 @@ player.animation.pointToPosition(api.math.vector3(x, y, z), {
 
 ## First-Person & Visibility Controls
 
-`setFirstPersonConfig` lets you customise what the player sees in first-person—useful for cinematic cameras or VR-like modes.
+`setFirstPersonConfig` lets you customise what the player sees in first-person, useful for cinematic cameras.
 
 ```ts
 player.animation.setFirstPersonConfig({
@@ -89,9 +87,9 @@ player.animation.setFirstPersonConfig({
 
 Animations always run on the client of the player you target. If you need to preview poses for other players (e.g., spectators), use `player.animation.setPartConfigWithVisibility(part, options, visibility)` where `visibility` can be `"self"`, `"others"`, or `"all"`.
 
-## Integration Tips
+## Tips
 
-- **Combine with Shared Values** – store animation state (current emote, isBusy flag, etc.) in shared stores so HUDs or other systems can react.
+
 - **Drive from events** – `player.movement.start/stop` events are great entry points to trigger locomotion overrides or footstep animations
 - **Camera-aware** – when using detached cameras (`player.camera.enableCustomCamera()`), manually adjust first-person visibility to prevent limbs from clipping the new view.
 

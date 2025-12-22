@@ -1,5 +1,5 @@
 # Installing Moud
-Moud is a TypeScript-first Minecraft framework. Everything like server scripts, client rendering, UI, audio, and tooling—runs on top of a small stack:
+Moud is a TypeScript-first Minecraft framework. Everything like server scripts, client rendering, UI, audio, and tooling. It runs on top of a small stack:
 
 - **Node.js** for authoring and bundling TypeScript.
 - **The Moud CLI** for scaffolding, development servers, hot reload, and packaging.

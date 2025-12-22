@@ -124,8 +124,3 @@ player.window.transitionTo({
 
 
 
-## Patterns & Best Practices
-
-- **Use custom events for interactions** – when a button is clicked, send `Moud.network.sendToServer('ui:buy', { slot })`. On the server, register `api.on('ui:buy', ...)` and validate.
-- **Batch DOM updates** – the component API is immediate, but you can still coalesce changes within `requestAnimationFrame` for smoother animations.
-- **Cleanup** – call `.remove()` on overlays when leaving menus or on `player.leave` to prevent ghost UI components if the client reconnects.

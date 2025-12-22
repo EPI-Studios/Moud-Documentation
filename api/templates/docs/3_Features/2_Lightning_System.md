@@ -1,15 +1,6 @@
 # Lighting System
 
-Moud ships with a client-rendered lighting pipeline powered by [Veil](https://github.com/foundry-mc/veil). Lights are defined entirely from TypeScript on the server, replicated over the custom packet engine, and rendered per-player on the Fabric mod. You can spawn, move, and delete lights every tick without touching Minecraft’s limited vanilla lightmap.
-
-## Architecture
-
-1. Server scripts call `api.lighting.*` (backed by `LightingAPIProxy`).
-2. `ServerLightingManager` stores light definitions and broadcasts operations (`create`, `update`, `remove`) to connected clients via `ServerNetworkManager`.
-3. Clients feed those operations into Veil, which renders additive light volumes with per-pixel falloff and post-processing.
-4. When a player reconnects, `ServerLightingManager.syncLightsToPlayer` pushes the full catalogue so they instantly see the existing setup.
-
-`AxiomBridgeService` also mirrors light transforms to the Axiom external editor so you can drag gizmos in real time while the game runs.
+Moud yuse client-rendered lighting pipeline powered by [Veil](https://github.com/foundry-mc/veil). Lights are defined from TypeScript on the server, replicated over the custom packet engine, and rendered per-player on the Fabric mod. You can spawn, move, and delete lights every tick.
 
 ## Light Types
 

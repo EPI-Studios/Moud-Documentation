@@ -1,54 +1,82 @@
-# Moud Architecture
+# Architecture
 
-Moud is a TypeScript-first workflow built on four pillars:
+Moud is a TypeScript-first workflow built around a Minestom server and a Fabric client mod.
+
+You write:
+
+- server scripts (executed by the server)
+- optional client scripts (executed by the client mod)
+- assets (textures, shaders, sounds, data)
+
+The CLI bundles scripts and the server streams assets and client scripts to players.
 
 ```
-┌────────────┐    ┌──────────────────┐    ┌───────────────┐
-│  CLI + SDK │    │  Minestom Server │    │ Fabric Client │
-│ (Node.js)  │ -> │  + GraalVM JS    │ -> │  + GraalVM JS │
-└────────────┘    └──────────────────┘    └───────────────┘
-         │                ▲    │                   ▲
-         └───── assets ───┴────┴── network engine ─┘
+
+┌──────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│ CLI + SDK    │    │ Minestom Server  │    │ Fabric Client Mod │
+│ (Node.js)    │ -> │ + GraalVM (api)  │ -> │ + GraalVM (Moud)  │
+└──────────────┘    └──────────────────┘    └──────────────────┘
+│                    │                      │
+└── assets + bundle ─┴──── custom packets ───┘
+
 ```
 
-TypeScript is authored once and executed in both the standalone server and the Fabric client. Everything else bundling, asset streaming, state sync, hot reload is infrastructure that keeps those two runtimes in lockstep.
+## What runs where
 
-## 1. Tooling Layer (packages/moud-cli + packages/sdk)
+- Server scripts run with the `api` global (server-only).
+- Client scripts run with the `Moud` global (client-only).
+- There is no `api` global on the client.
 
-- `packages/moud-cli` exposes `moud create/dev/pack`.  
-  - It installs Java 21 and the latest `moud-server.jar` automatically.  
-  - Then the transpiler (esbuild + AdmZip) bundles server and client scripts, caches them under `.moud/cache`, and generates a manifest/hash.  
+Server scripts have timer helpers like `setTimeout` and `setInterval`. Client-side rendering timers like `requestAnimationFrame` are client-only.
 
-- `packages/sdk` is type-only. It injects global declarations (`api`, `Moud`, `Vector3`, `Player`, `SharedStore`, etc.) so IDEs understand every proxy exposed by the runtime.
+## Tooling (CLI + SDK)
 
-## 2. Server Runtime (server/)
+### CLI (`packages/moud-cli`)
 
-The Server is **not** a Spigot/Bukkit plugin. It is its own Minestom distribution (`com.moud.App`) with the following services:
+- Commands: `moud create`, `moud dev`, `moud pack`.
+- Ensures a working environment:
+  - installs Java 21 under `~/.moud/jdks/` (if needed)
+  - downloads a compatible server jar under `~/.moud/servers/`
+- Bundles your project into cached artifacts:
+  - `.moud/cache/server.bundle.js`
+  - `.moud/cache/client.bundle`
+  - `.moud/cache/manifest.json`
+- In watch mode, it sends new bundles to the hot reload endpoint (`/moud/api/reload` on `port + 1000`).
 
+### SDK (`packages/sdk`)
 
-**Moud** acts as the orchestrator of the engine. It loads the project, initializes all managers and services, binds the scripting API, and controls hot-reloads. Once initialized, it runs your transpiled TypeScript through GraalVM, exposing a sandboxed scripting environment with familiar global helpers (`setTimeout`, `setInterval`, `requestAnimationFrame`) and a unified `api` object for interacting with the server.
+`packages/sdk` is an npm package used by TypeScript projects. It provides:
 
-At runtime, the system builds a bridge between scripts and the Minestom server through a series of **proxy layers**, ensuring safe and structured access to game entities, world data, and gameplay systems. Asset management, client bundling, and networking are handled then assets and client scripts are scanned, bundled, and streamed to players  during connection.
+- the TypeScript API surface for `api` and `Moud` (autocomplete and type safety)
+- a small set of runtime helpers used by scripts (example: `framebufferExportTextureId`)
 
+## Server Runtime (`server/`)
 
-For development and diagnostics, Moud exposes optional services such as a live hot-reload endpoint, a profiling UI, and bridges for external creative tools. Together, these components create a cohesive runtime that allows live scripting, dynamic asset streaming, and low-latency server–client interaction, all without restarting the server.
+The server is a standalone Minestom distribution (entry point `com.moud.App`). It is not a Spigot or Bukkit plugin.
 
+At startup it:
 
+- loads the project root (looks for `package.json` and `moud:main`)
+- starts the scripting runtime (GraalVM) and exposes `api` as a proxy surface
+- builds and hosts the resource pack for project assets
+- streams the client script bundle to players running the client mod
 
+Networking uses `network-engine` packet definitions and transports them over plugin messaging (`moud:wrapper`).
 
-## 3. Client Runtime (client-mod/)
+## Client Runtime (`client-mod/`)
 
+The client mod runs inside Minecraft (Fabric) and mirrors the scripting model:
 
+- it applies the server-provided resource pack, then loads the client script bundle
+- it runs client scripts in GraalVM and exposes the `Moud` global
+- it owns local-only systems like UI overlays, input, audio and voice, and rendering (Veil)
 
-On the client side, players run the **fabric mod**, which mirrors the server’s scripting and service architecture. It embeds its own GraalVM runtime to execute TypeScript directly in Minecraft, providing the same `Moud` global environment and APIs available on the server. This allows scripts to share logic seamlessly across both ends, from gameplay systems to UI interactions etc...
+Client and server talk through custom packets and events. The server stays authoritative for gameplay state. The client focuses on presentation and player-side tools.
 
-The client runtime manages all local systems for the player experience: rendering and post-processing (via Veil), lighting, audio playback and microphone streaming, cursors and cameras, input and gamepads, as well as a full UI overlay framework inspired by web layout models. These services are unified under the `Moud.*` namespace, exposing a coherent API surface.
+## Modules 
 
-Networking is handled through a lightweight wrapper over plugin channels, translating data between client and server systems with minimal boilerplate. Shared state is continuously synchronized in both directions, allowing responsive updates and real-time collaboration between players and server logic.
+- `network-engine` - packet definitions and serializers shared by server and client
+- `plugin-api` - stable Java plugin interfaces implemented by the server
+- `packages/sdk` - TypeScript API surface for scripts
+- `packages/moud-cli` - dev workflow, bundling, and launching
 
-Overall, the client mod acts as the **mirror half of Moud**, turning the Minecraft client into a programmable environment where gameplay logic, UI, and visuals are fully scriptable and hot-reloadable .
-
-
----
-
-The following pages dive into events, shared state, and the individual features exposed by these services.

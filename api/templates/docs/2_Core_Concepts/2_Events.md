@@ -88,12 +88,4 @@ api.on('player.join', (player) => {
 });
 ```
 
-Client scripts listen via `Moud.network.on('hud:show', (payload) => { ... })` (see the UI part in the documentation). This is how lighting updates, audio commands, cursor state, and other server-driven systems reach the client runtime.
 
-## Profiling & Diagnostics
-
-- Every callback is wrapped with `ScriptExecutionMetadata`, so enabling the profiler (`moud dev --profile-ui`) shows how long each event handler takes.
-- `SharedValueInspectCommand` (`/sharedinspect`) dumps shared store state per player, so you can verify your events mutate the expected keys.
-- `DevUtilities` also expose `/networkprobe` to track custom event traffic in real time.
-
-With these infromations you can build the rest of your gameplay loop merely by reacting to events and pushing data through Shared Values or custom messages.

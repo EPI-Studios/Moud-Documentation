@@ -52,7 +52,7 @@ What happens under the hood:
 
 ## 5. Edit Something
 
-Open `src/main.ts` and tweak one of the demo hooks—for example, add a simple chat event test:
+Open `src/main.ts` and tweak one of the demo hooks, for example, add a simple chat event test:
 
 ```ts
 api.on('player.chat', (event) => {
@@ -68,17 +68,8 @@ api.on('player.chat', (event) => {
 
 Save the file. The CLI recompiles, sends a new bundle, and the running client updates instantly. 
 
-## 6. Optional Dev Utilities
 
-Run the server with `moud dev --dev-utils` to enable in-game commands such as:
-
-- `/sharedinspect <player>` – inspect Shared Values coming from `SharedValueManager`.
-- `/networkprobe` – stream packet stats from `ServerNetworkManager`.
-- `/spawnlight` – live-test the lighting API without writing code.
-
-Use these while iterating on systems such as Shared Values or lights; the commands are registered from `DevUtilities` inside the server module.
-
-## 7. Build for Distribution
+## 6. Build for Distribution
 
 When you're ready to share a build:
 
@@ -87,5 +78,3 @@ npm run build   # -> moud pack
 ```
 
 `moud pack` runs the transpiler in production mode, copies assets, embeds the latest `moud-server.jar`, and writes a zipped folder under `dist/`. Players can unzip it and run `run.sh` / `run.bat` to host your experience without installing Node or the CLI.
-
-At this point you've touched every part of the toolchain—CLI, server runtime, Fabric mod, hot reload, and the packer. The remaining chapters dive into the core systems you can script on both sides.

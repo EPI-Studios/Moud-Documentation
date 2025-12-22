@@ -4,7 +4,9 @@ Links and utilities that help while building with Moud.
 
 ## Documentation & References
 
-- **Type Definition** – generated from `packages/sdk`: [https://epi-studios.github.io/Moud/](https://epi-studios.github.io/Moud/). Browse every server/client/shared type that `@epi-studio/moud-sdk` exposes.
+- **Type Definition** – generated from `packages/sdk`: [https://epi-studios.github.io/Moud/](https://epi-studios.github.io/Moud/). 
+
+Browse every server/client/shared type that `@epi-studio/moud-sdk` exposes.
 
 ## Repositories
 
@@ -14,12 +16,7 @@ Links and utilities that help while building with Moud.
 | `Moud-Documentation` | Source for this documentation site (mdoc templates). |
 
 
-## Useful Runtime Commands
 
-- `/sharedinspect` – Inspect Shared Value stores (enable with `moud dev --dev-utils`).
-- `/networkprobe` – Watch outbound/inbound packet stats from `ServerNetworkManager`.
-- `/spawnlight` – Visualize lighting payloads in real time.
-- [Profiler UI](server/src/main/java/com/moud/server/profiler) – Launch with `moud dev --profile-ui` to capture script execution metadata from Graal.
 
 ## Community
 

@@ -105,9 +105,4 @@ api.on('player.movement.start', (player) => {
 
 Even if the client sends an invalid value, the server can overwrite it immediately; the authoritative version is always whatever the server last wrote.
 
-## Diagnostics 
-
-- `/sharedinspect <player> [store]` – prints each key, last writer (server/client), permission bits, dirty state, and age of the value.
-- `SharedValueManager.snapshotAllStores()` – returns JSON-friendly data for dashboards or logging.
-- `SharedValuePacketHandler` logs rejected updates (e.g., client attempted to write a `server_only` key) when debug logging is enabled.
 

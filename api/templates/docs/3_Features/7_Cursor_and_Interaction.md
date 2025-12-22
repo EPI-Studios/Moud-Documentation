@@ -1,25 +1,8 @@
 # Cursor & Interaction
 
-The `CursorService` hooks raw mouse movement from the Fabric mod, raycasts against blocks and scripted entities on the server, and exposes a high-level API through `player.cursor`. You can build RTS-style selection tools, 3D UI, hover tooltips, or gizmo-like editors without modifying the client.
+The `CursorService` hooks raw mouse movement from the Fabric mod, raycasts against blocks and scripted entities on the server, and exposes a high-level API through `player.cursor`.
 
-## Data Flow
 
-1. The Fabric mod captures mouse deltas even when the camera is detached and sends them to the server (`MouseMovementPacket`, `PlayerClickPacket`).
-2. `CursorService` raycasts from either the player’s head or the locked camera position (if `player.camera` is active).
-3. Cursor state (position, facing normal, block hit, hovered entity) is stored server-side and replicated to other players when needed.
-4. Scripts use `player.cursor` to read/write state and to control visibility, textures, or audience.
-
-## Customising the Cursor
-
-```ts
-api.on('player.join', (player) => {
-  const cursor = player.cursor;
-  cursor.setVisible(true);
-  cursor.setColor(0.2, 0.9, 0.7);
-  cursor.setScale(1.2);
-  cursor.setTexture('moud:textures/ui/cursor_focus.png');
-});
-```
 
 Available methods:
 

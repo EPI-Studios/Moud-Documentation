@@ -4,12 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Moud – TypeScript-first Minecraft Scripting</title>
+
+    <meta name="description" content="The open-source, TypeScript-first engine for creative Minecraft development. Build server logic, client mods, and modern graphics in a unified workflow.">
+    <meta property="og:title" content="Moud – TypeScript-first Minecraft Scripting">
+    <meta property="og:description" content="One language for server and client. Hot reload. Advanced rendering.">
+    <meta property="og:type" content="website">
+    <meta name="theme-color" content="#3b82f6">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
 </head>
-<body>
+<body class="landing-page">
+
+
     <svg width="0" height="0" style="position: absolute;"><defs>
         <filter id="handdrawnFilter">
             <feTurbulence type="turbulence" baseFrequency="0.02" numOctaves="2" seed="1" result="noise" />
@@ -19,7 +28,7 @@
     
     <main>
         <section id="hero" class="parallax-section">
-            <video class="hero-video-bg" autoplay muted loop playsinline>
+            <video class="hero-video-bg" autoplay muted loop playsinline poster="{{ url_for('static', filename='images/hero-poster.jpg') }}">
                 <source src="/static/videos/animation_example.mp4" type="video/mp4">
             </video>
             <div class="hero-overlay"></div>
@@ -38,7 +47,7 @@
                     </svg>
                 </div>
                 <span class="sr-only">MOUD</span>
-                <p class="tagline">The open-source, TypeScript-first engine for creative Minecraft development. Build server logic, client mods, and modern graphics in a unified workflow.</p>
+                <p class="tagline">The open-source, TypeScript-first engine for creative Minecraft development. Build server logic, client mods, and modern graphics developement in a unified workflow.</p>
                 <div class="buttons">
                     <a href="https://moud.epistudios.fr/1_Getting_Started/1_Installation" target="_blank" class="btn btn-primary">Get Started</a>
                     <a href="https://github.com/EPI-Studios/Moud" target="_blank" class="btn btn-secondary">View on GitHub <span id="github-stars">★</span></a>
@@ -59,8 +68,8 @@
                     </div>
                     <div class="what-description">
                         <p>A <span class="highlight">modern engine</span> that brings TypeScript to the heart of Minecraft development.</p>
-                        <p>Write <span class="highlight">server logic</span>, <span class="highlight">client mods</span>, and <span class="highlight">advanced shaders</span> in one unified language.</p>
-                        <p>Built for <span class="highlight">creators</span> who demand speed, safety, and perfomance (hehe)</p>
+                        <p>Write <span class="highlight">server logic</span>, <span class="highlight">client mods</span>, and <span class="highlight">advanced shaders</span></p>
+                        <p>Built for <span class="highlight">creators</span> who demand speed, safety, and performance.</p>
                     </div>
                 </div>
             </div>
@@ -70,7 +79,7 @@
             <div class="container">
                 <div class="section-header" data-parallax-depth="5">
                     <h2 class="handdrawn-title">Why Moud?</h2>
-                    <p>Four reasons Moud reshapes the way you build.</p>
+                    <p>Four reasons Moud change the way you build.</p>
                 </div>
             </div>
             <div class="features-horizontal">
@@ -79,7 +88,7 @@
                         <div class="feature-number">01</div>
                         <div class="feature-content">
                             <h3>TypeScript Everywhere</h3>
-                            <p>One language for server and client.</p>
+                            <p>One language for server and client. No more context switching.</p>
                         </div>
                     </div>
                     <div class="feature-slide">
@@ -93,15 +102,44 @@
                         <div class="feature-number">03</div>
                         <div class="feature-content">
                             <h3>Advanced Rendering</h3>
-                            <p>Shaders, lighting, and post-processing live in one pipeline.</p>
+                            <p>Shaders, lighting, and post-processing live in one unified pipeline.</p>
                         </div>
                     </div>
                     <div class="feature-slide">
                         <div class="feature-number">04</div>
                         <div class="feature-content">
                             <h3>Reactive State Sync</h3>
-                            <p>Reliable shared state keeps every player in sync automatically so you can stay focused on gameplay.</p>
+                            <p>Reliable shared state keeps every player in sync automatically.</p>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="code-showcase" class="section parallax-section">
+            <div class="container">
+                <div class="code-layout">
+                    <div class="code-text" data-parallax-depth="4">
+                        <h2 class="handdrawn-title" style="text-align: left;">Fluent API</h2>
+                        <p>Forget the boilerplate. Moud provides an event-driven API that makes creating stuff intuitive.</p>
+                        <ul class="feature-list">
+                            <li>✓ Fully typed Events</li>
+                            <li>✓ Zero Java knowledge required (maybe if you want to understand deeper by reading the code base)</li>
+                        </ul>
+                    </div>
+                    <div class="code-window spotlight-card" data-parallax-depth="8">
+                        <div class="window-header">
+                            <div class="dots">
+                                <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+                            </div>
+                            <span class="filename">hello.ts</span>
+                        </div>
+                        <pre><code class="language-typescript"><span class="v">events</span>.<span class="f">on</span>(<span class="s">"player.chat"</span>, (<span class="v">player</span>: <span class="k">any</span>, <span class="v">message</span>: <span class="c">string</span>) =&gt; {
+    <span class="k">if</span> (<span class="v">message</span>?.<span class="f">trim</span>().<span class="f">toLowerCase</span>() === <span class="s">"hello"</span>) {
+        <span class="v">player</span>.<span class="f">sendMessage</span>(<span class="s">"§aHello from Moud!"</span>);
+    }
+});
+</code></pre>
                     </div>
                 </div>
             </div>
@@ -111,22 +149,22 @@
             <div class="container">
                 <div class="section-header" data-parallax-depth="5">
                     <h2 class="handdrawn-title">Built on Solid Foundations</h2>
-                    <p>A carefully designed stack that combines the best technologies for performance, flexibility, and developer experience.</p>
+                    <p>A designed stack that combines the BEST technologies for performance, flexibility, and developer experience.</p>
                 </div>
                 <div class="stack-container">
-                    <div class="stack-layer layer-typescript" data-parallax-depth="8">
+                    <div class="stack-layer layer-typescript spotlight-card" data-parallax-depth="8">
                         <h3>Your TypeScript Code</h3>
                         <p>Write game logic, mods, and systems in modern TypeScript with full type safety</p>
                     </div>
-                    <div class="stack-layer layer-moud" data-parallax-depth="12">
+                    <div class="stack-layer layer-moud spotlight-card" data-parallax-depth="12">
                         <h3>Moud Core Engine</h3>
                         <p>Hot reload system, state synchronization, and unified API layer</p>
                     </div>
-                    <div class="stack-layer layer-graal" data-parallax-depth="16">
+                    <div class="stack-layer layer-graal spotlight-card" data-parallax-depth="16">
                         <h3>GraalVM Runtime</h3>
                         <p>High-performance JavaScript engine with seamless Java interop</p>
                     </div>
-                    <div class="stack-layer layer-minecraft" data-parallax-depth="20">
+                    <div class="stack-layer layer-minecraft spotlight-card" data-parallax-depth="20">
                         <h3>Minecraft + Fabric</h3>
                         <p>Native Minecraft platform with full mod compatibility</p>
                     </div>
@@ -149,44 +187,94 @@
         <section id="credits" class="section parallax-section">
             <div class="container">
                 <div class="section-header" data-parallax-depth="5">
-                    <h2 class="handdrawn-title">Thanks to the Builders</h2>
-                    <p>Moud stands on the shoulders of brilliant open-source projects. We're grateful for the communities who keep them alive.</p>
+                    <h2 class="handdrawn-title">Standing on Giants</h2>
+                    <p>Moud wouldn't exist without these incredible open-source projects.</p>
                 </div>
                 <div class="credits-grid">
-                    <article class="credit-card" data-parallax-depth="6">
+                    <article class="credit-card spotlight-card" data-parallax-depth="6">
                         <div class="credit-title">Minestom</div>
                         <p class="credit-copy">For providing the incredibly powerful and modern Minecraft server base.</p>
                         <a href="https://minestom.net/" target="_blank" rel="noopener">Visit project ↗</a>
                     </article>
-                    <article class="credit-card" data-parallax-depth="10">
+                    <article class="credit-card spotlight-card" data-parallax-depth="10">
                         <div class="credit-title">GraalVM</div>
                         <p class="credit-copy">For enabling high-performance JavaScript & TypeScript execution on the JVM.</p>
                         <a href="https://www.graalvm.org/" target="_blank" rel="noopener">Visit project ↗</a>
                     </article>
-                    <article class="credit-card" data-parallax-depth="14">
+                    <article class="credit-card spotlight-card" data-parallax-depth="14">
                         <div class="credit-title">FabricMC</div>
                         <p class="credit-copy">For the client-side modding toolchain and API that makes the Moud client possible.</p>
                         <a href="https://fabricmc.net/" target="_blank" rel="noopener">Visit project ↗</a>
                     </article>
-                    <article class="credit-card" data-parallax-depth="18">
+                    <article class="credit-card spotlight-card" data-parallax-depth="18">
                         <div class="credit-title">Veil</div>
-                        <p class="credit-copy">For the advanced rendering capabilities that make custom shaders and post-processing easier to handle.</p>
+                        <p class="credit-copy">For the advanced rendering capabilities that make custom shaders and post-processing easier.</p>
                         <a href="https://github.com/FoundryMC/Veil" target="_blank" rel="noopener">Visit project ↗</a>
+                    </article>
+                        <article class="credit-card spotlight-card" data-parallax-depth="18">
+                        <div class="credit-title">imgui-java</div>
+                        <p class="credit-copy">For providing a flexible and powerful immediate-mode UI framework in Java.</p>
+                        <a href="https://github.com/SpaiR/imgui-java" target="_blank" rel="noopener">Visit project ↗</a>
+                    </article>
+                        </article>
+                        <article class="credit-card spotlight-card" data-parallax-depth="18">
+                        <div class="credit-title">jolt-jni</div>
+                        <p class="credit-copy">For delivering a fast, modern, and highly optimized physics engine.</p>
+                        <a href="https://github.com/stephengold/jolt-jni" target="_blank" rel="noopener">Visit project ↗</a>
+                    </article>
+                    </article>
+                        </article>
+                        <article class="credit-card spotlight-card" data-parallax-depth="18">
+                        <div class="credit-title">OpenJFX</div>
+                        <p class="credit-copy">For offering a modern, Java UI toolkit that enables rich for profiling.</p>
+                        <a href="https://github.com/stephengold/jolt-jni" target="_blank" rel="noopener">Visit project ↗</a>
+                    </article>
+                    </article>
+                        </article>
+                        <article class="credit-card spotlight-card" data-parallax-depth="18">
+                        <div class="credit-title">JCodec</div>
+                        <p class="credit-copy">For providing a pure-Java video and audio codec library that makes media decoding, encoding possible.</p>
+                        <a href="https://github.com/stephengold/jolt-jni" target="_blank" rel="noopener">Visit project ↗</a>
                     </article>
                 </div>
             </div>
         </section>
 
         <section id="quickstart" class="section parallax-section">
-            <div class="container">
-                 <div class="section-header" data-parallax-depth="5">
-                    <h2 class="handdrawn-title">Get Started in Minutes</h2>
-                    <p>Install the CLI and launch your first Moud project with just a few commands.</p>
+    <div class="container">
+        <div class="section-header" data-parallax-depth="5">
+            <h2 class="handdrawn-title">Start Engine</h2>
+            <p>From zero to "Hello World" in less than 30 seconds.</p>
+        </div>
+
+        <div class="live-terminal-wrapper" data-parallax-depth="8">
+            <div class="live-terminal">
+                <div class="live-term-header">
+                    <div class="term-buttons">
+                        <span class="term-btn close"></span>
+                        <span class="term-btn min"></span>
+                        <span class="term-btn max"></span>
+                    </div>
+                    <span class="term-title">bash - moud-cli</span>
                 </div>
-                <div class="quickstart-steps">
-                    <div class="quickstart-step" data-parallax-depth="8"><h3>1. Install the CLI</h3><p>Get the Moud command-line tool from npm.</p><code>npm install -g @epi-studio/moud-cli</code></div>
-                    <div class="quickstart-step" data-parallax-depth="12"><h3>2. Create a Project</h3><p>Scaffold a new project in a new directory.</p><code>moud create my-game</code></div>
-                    <div class="quickstart-step" data-parallax-depth="16"><h3>3. Run the Dev Server</h3><p>Start the server with hot-reload enabled.</p><code>cd my-game && moud dev</code></div>
+                <div class="live-term-body" id="terminal-content">
+                    <div class="cursor-line">
+                        <span class="prompt">user@moud:~$</span>
+                        <span id="typewriter"></span><span class="cursor">█</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+        <section class="final-cta section parallax-section">
+            <div class="container" style="text-align: center; max-width: 600px;" data-parallax-depth="4">
+                <h2 class="handdrawn-title">Ready to build?</h2>
+                <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 2rem;">Join a community of creators pushing the boundaries of what Minecraft can do.</p>
+                <div class="buttons" style="justify-content: center;">
+                    <a href="https://moud.epistudios.fr/1_Getting_Started/1_Installation" class="btn btn-primary">Start Building</a>
+                    <a href="#" class="btn btn-secondary">Join Discord</a>
                 </div>
             </div>
         </section>
@@ -194,7 +282,7 @@
 
     <footer class="site-footer">
         <div class="footer-simple">
-            <p>© EPI Studios — Moud documentation</p>
+            <p>© EPI Studios - Moud Documentation</p>
             <p>Design & build by <a href="https://meekhasto.rest" target="_blank" rel="noopener">Meek</a></p>
         </div>
     </footer>
@@ -203,5 +291,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
     <script src="{{ url_for('static', filename='js/landing.js') }}" defer></script>
+    <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script> 
 </body>
 </html>

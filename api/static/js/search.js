@@ -123,28 +123,6 @@ function scrollToFirstHighlight() {
 }
 
 function addUIEnhancements() {
-    const codeBlocks = document.querySelectorAll('pre code');
-    codeBlocks.forEach(function(codeBlock) {
-        const container = codeBlock.parentNode;
-        
-        const copyButton = document.createElement('button');
-        copyButton.className = 'copy-button';
-        copyButton.textContent = 'Copy';
-        
-        container.style.position = 'relative';
-        
-        copyButton.addEventListener('click', function() {
-            const code = codeBlock.textContent;
-            navigator.clipboard.writeText(code).then(function() {
-                copyButton.textContent = 'Copied!';
-                setTimeout(function() {
-                    copyButton.textContent = 'Copy';
-                }, 2000);
-            });
-        });
-        
-        container.appendChild(copyButton);
-    });
 
     const contentContainer = document.getElementById('doc-content');
     if (contentContainer && !document.querySelector('.print-button')) {
@@ -152,7 +130,7 @@ function addUIEnhancements() {
         printButton.textContent = 'Print View';
         printButton.className = 'print-button';
         printButton.href = window.location.pathname + '?print=1';
-        
+
         const actionButtons = document.querySelector('.action-buttons');
         if (!actionButtons) {
             const h1 = document.querySelector('h1');

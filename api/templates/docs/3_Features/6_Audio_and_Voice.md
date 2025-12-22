@@ -1,121 +1,255 @@
 # Audio & Voice
 
-Moud’s audio stack goes far beyond `/playsound`. The server exposes a fluent API (`player.audio`) for positional sounds, layered music, fades, cross-fades, pitch ramps, and even microphone streaming back to the server. The Fabric mod hosts a `ClientAudioService` that manages up to 64 concurrent sounds per player with sample-accurate fades.
+Moud has **two** audio-related systems that often get mixed up:
 
-## Playback API
+1. **Audio playback**: the server tells the client “play this sound”, “fade it out”, “move it”, etc.
+2. **Voice**: a real voice chat pipeline (routing, proximity range, channels, recordings…) built on Moud packets.
+
+And there’s a third thing that looks like voice, but is actually lower-level:
+
+3. **Microphone capture**: “give me raw PCM chunks from the client’s mic” so you can do your own thing (moderation, custom radio, analysis, etc.).
+
+This page explains the three.
+
+---
+
+## 1) Audio playback (sounds)
+
+### The model
+
+- Every sound is addressed by an `id` **per player**.
+- You `play({ id, ... })` once, then `update({ id, ... })` as many times as you want, then `stop({ id })`.
+- The client has a **managed sound limit** (64). If you spam unique ids, new sounds will get refused.
+
+### Example : play / update / stop
 
 ```ts
-const audio = player.getAudio(); // or player.audio
+const audio = player.getAudio();
 
 audio.play({
-  id: 'intro_theme',
+  id: 'music:intro',
   sound: 'minecraft:music.menu',
   category: 'music',
   volume: 0.6,
   loop: true,
-  fadeInMs: 2000,
+  fadeInMs: 1500,
   crossFadeGroup: 'music',
   crossFadeMs: 1500
 });
-```
 
-Every sound is addressed by an `id`. Later `update` or `stop` calls reference the same id.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | string | Required. Unique per-player. |
-| `sound` | Namespaced id | Any registered sound event (`minecraft:music.game`, custom datapacks, etc.). |
-| `category` | string (SoundCategory) | Defaults to `MASTER`. |
-| `volume` / `pitch` | number | Defaults 1.0. |
-| `loop` | boolean | Whether the sound restarts automatically. |
-| `fadeInMs` / `fadeOutMs` | number | Milliseconds for envelope transitions. |
-| `positional` | boolean | If `true`, treat as spatialised sound. Requires `position`. |
-| `position` | `{ x, y, z }` | World-space coordinates for positional audio. |
-| `maxDistance` | number | Cut-off distance for positional attenuation. |
-| `pitchRamp` | `{ pitch, durationMs, easing }` | Smoothly glide to a new pitch. |
-| `crossFadeGroup` | string | Tag multiple sounds so the engine automatically fades out previous members when a new one starts. |
-| `crossFadeMs` | number | Duration of the cross-fade. |
-
-Updating an existing sound:
-
-```ts
+// later…
 audio.update({
-  id: 'intro_theme',
-  volume: 0.3,
-  pitchRamp: { pitch: 1.2, durationMs: 4000, easing: 'ease_in_out' }
+  id: 'music:intro',
+  volume: 0.25,
+  pitchRamp: { pitch: 1.1, durationMs: 1200, easing: 'ease_in_out' }
 });
+
+// mater…
+audio.stop({ id: 'music:intro', fadeOutMs: 800 });
 ```
 
-Stopping:
+If a sound doesn’t play, the first thing to check is: “is that sound id present in the client’s current resource pack?”
+
+---
+
+## 2) Sounds effects (crossfades, ducking, spatial audio)
+
+### Crossfading a music playlist (no overlap chaos)
+
+You don’t want “battle music” + “exploration music” fighting each other. Use a crossfade group:
 
 ```ts
-audio.stop({ id: 'intro_theme', fadeOutMs: 1000 });
-```
-
-If you omit `fadeOutMs`, the sound stops immediately.
-
-## Layering & Groups
-
-Cross-fade groups ensure one category of audio never clashes with itself:
-
-```ts
-function playTrack(player: Player, trackId: string) {
-  player.audio.play({
-    id: `music:${trackId}`,
-    sound: `moud:music/${trackId}`,
+function playTrack(player: Player, track: string) {
+  player.getAudio().play({
+    id: `music:${track}`,
+    sound: `moud:music/${track}`,
     category: 'music',
-    volume: 0.5,
     loop: true,
+    volume: 0.5,
     crossFadeGroup: 'music',
     crossFadeMs: 2500
   });
 }
 ```
 
-Triggering `playTrack(player, 'battle')` will fade out the previous group member (`music:intro`, for example) over 2.5 seconds before fading in the new one.
+Calling `playTrack(player, 'battle')` automatically fades out any previous sound in group `music`.
 
-## Positional Sound Effects
+### Ducking 
+
+Ducking is “lower group X while this sound is active”.
 
 ```ts
-player.audio.play({
-  id: `orb_${player.getUuid()}`,
-  sound: 'minecraft:block.beacon.activate',
+player.getAudio().play({
+  id: 'ui:notification',
+  sound: 'minecraft:entity.experience_orb.pickup',
+  volume: 0.9,
+  duck: { group: 'music', amount: 0.6, attackMs: 80, releaseMs: 400 },
+  mixGroup: 'sfx'
+});
+```
+
+Here, when the notification plays, it temporarily reduces the mix group `music` by `amount` (0 → no duck, 1 → full duck).
+
+### Positional audio (3D)
+
+```ts
+player.getAudio().play({
+  id: 'orb:hum',
+  sound: 'minecraft:block.beacon.ambient',
   category: 'ambient',
   volume: 0.7,
+  loop: true,
   positional: true,
   position: api.math.vector3(12, 65, 8),
-  maxDistance: 32
+  minDistance: 2,
+  maxDistance: 32,
+  distanceModel: 'inverse',
+  rolloff: 1.0
 });
 ```
 
-Updating the `position` field lets you attach the sound to moving entities or cursor targets.
-
-## Microphone Streaming
-
-You can request microphone access from the client and consume PCM chunks on the server via `ServerMicrophoneManager`.
+To “attach” a sound to something that moves, just update its `position`:
 
 ```ts
-// server
-player.audio.startMicrophone({
-  sessionId: `team_chat_${player.getUuid()}`,
-  sampleRate: 48000
+player.getAudio().update({
+  id: 'orb:hum',
+  position: api.math.vector3(12, 65, 9)
 });
 ```
 
-To stop:
+---
+
+## Microphone capture 
+
+This is **not** the same as voice chat. It’s a low-level capture stream.
+
+### Start / stop capture
 
 ```ts
-player.audio.stopMicrophone();
+player.getAudio().startMicrophone({
+  sessionId: `mic:test:${player.getUuid()}`,
+  sampleRate: 48000,
+  frameSizeMs: 20
+});
+
+// later
+player.getAudio().stopMicrophone();
 ```
 
-Server-side you can inspect sessions:
+### Reading the session state
 
 ```ts
-const session = player.audio.getMicrophoneSession();
-if (session?.state === 'started') {
-  // still not fully implemented
+const session = player.getAudio().getMicrophoneSession();
+if (!session) return;
+
+if (session.active) {
+  // `chunkBase64` is present when legacy mic events are enabled (or when the client is using the legacy path)
+  // It is not a full audio history; it’s just the last observed chunk.
+  console.log('mic active', session.sessionId, session.sampleRate, session.channels);
 }
 ```
 
-`ServerMicrophoneManager` keeps track of active sessions and exposes raw PCM buffers so you can relay them to another service (voice chat, recording, moderation, etc.).
+### When to use `legacyScriptEvents`
+
+Moud has two mic paths:
+
+- **Modern path (preferred)**: the client processes and ships voice frames through the voice pipeline.
+- **Legacy script events**: the mic sends `audio:microphone:*` events (chunk/state/error) to the server as JSON.
+
+If you explicitly want those `audio:microphone:*` script events, enable:
+
+```ts
+player.getAudio().startMicrophone({ legacyScriptEvents: true });
+```
+
+---
+
+##  Voice chat (routing + state + recording)
+
+Voice chat is built around **routing**. You don’t “play sounds”; you describe who hears whom, and the runtime handles packets.
+
+### Routing modes (what they mean)
+
+- `proximity`: hear players within `range` (positional by default)
+- `channel`: hear players on the same named channel
+- `radio`: like channel, but typically paired with different processing/range rules in your gameplay
+- `direct`: explicit `targets` list (useful for party chat, whisper to an NPC, etc.)
+
+### Set default proximity voice
+
+```ts
+player.getAudio().setVoiceRouting({
+  mode: 'proximity',
+  range: 16,
+  positional: true,
+  speechMode: 'normal'
+});
+```
+
+### Party chat (direct targets)
+
+```ts
+player.getAudio().setVoiceRouting({
+  mode: 'direct',
+  targets: [
+    leader.getUuid().toString(),
+    teammate.getUuid().toString()
+  ],
+  positional: false
+});
+```
+
+### Inspect voice state (is someone speaking?)
+
+```ts
+const voice = player.getAudio().getVoiceState();
+if (voice?.active && voice.speaking) {
+  console.log('speaking with level', voice.level, 'session', voice.sessionId);
+}
+```
+
+### Recording & replay 
+
+```ts
+const recordingId = player.getAudio().startVoiceRecording({ maxDurationMs: 30_000 });
+// ... later
+player.getAudio().stopVoiceRecording();
+
+// Replay to nearby players
+player.getAudio().replayVoiceRecording(recordingId!, {
+  range: 12,
+  position: player.getPosition(),
+  replayId: 'replay:test'
+});
+```
+
+---
+
+## Full reference: `SoundPlayOptions`
+
+Use this when you need “every knob”.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | `string` | Required. Unique per player. |
+| `sound` | `string` | Namespaced sound id. Must exist in the client’s resources. |
+| `category` | `SoundCategory` | Defaults to `master`. |
+| `volume` | `number` | Default `1.0`. |
+| `pitch` | `number` | Default `1.0`. |
+| `loop` | `boolean` | Default `false`. |
+| `startDelayMs` | `number` | Delay before starting playback. |
+| `fadeInMs` / `fadeOutMs` | `number` | Envelope times. |
+| `fadeInEasing` / `fadeOutEasing` | `linear \| ease_in \| ease_out \| ease_in_out` | Easing curve for fades. |
+| `positional` | `boolean` | Enables 3D attenuation/panning. |
+| `position` | `Vector3 \| [x,y,z]` | Required for moving 3D sources. |
+| `minDistance` / `maxDistance` | `number` | Controls attenuation curve range. |
+| `distanceModel` | `linear \| inverse \| exponential` | How distance affects volume. |
+| `rolloff` | `number` | Extra attenuation multiplier (engine-specific feel). |
+| `pitchRamp` | `{ pitch, durationMs, easing? }` | Smooth pitch glide. |
+| `volumeLfo` | `{ frequencyHz, depth, waveform? }` | Tremolo-style modulation. `depth` is 0..1. |
+| `pitchLfo` | `{ frequencyHz, depthSemitones, waveform? }` | Vibrato-style modulation. |
+| `mixGroup` | `string` | Lets you group sounds for ducking/mix control. |
+| `duck` | `{ group, amount, attackMs?, releaseMs? }` | Duck another mix group while this plays. |
+| `crossFadeGroup` | `string` | Fade out older members automatically. |
+| `crossFadeMs` | `number` | Crossfade duration. |
 
