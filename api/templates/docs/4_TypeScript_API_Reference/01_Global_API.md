@@ -94,8 +94,8 @@ api.on('player.click', (player) => {
 ```ts
 api.zones.create(
     'lobby',
-    api.math.vector3(0, 64, 0),
-    api.math.vector3(12, 72, 12),
+    { x: 0, y: 64, z: 0 },
+    { x: 12, y: 72, z: 12 },
     {
         onEnter: (p) => p.sendMessage('Welcome to the lobby'),
         onLeave: (p) => p.sendMessage('Leaving the lobby')

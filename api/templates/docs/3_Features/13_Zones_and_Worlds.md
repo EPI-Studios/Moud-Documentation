@@ -10,14 +10,16 @@ Zones are axis-aligned boxes (AABBs). You define them with two corners; order do
 ```ts
 api.zones.create(
   'spawn',
-  api.math.vector3(-5, 64, -5),
-  api.math.vector3(5, 72, 5),
+  { x: -5, y: 64, z: -5 },
+  { x: 5, y: 72, z: 5 },
   {
     onEnter: (player, zoneId) => player.sendMessage(`entered ${zoneId}`),
     onLeave: (player, zoneId) => player.sendMessage(`left ${zoneId}`)
   }
 );
 ```
+
+`corner1` / `corner2` can also be created with `api.math.vector3(x, y, z)`.
 
 ### Update callbacks (without changing the box)
 
@@ -39,7 +41,9 @@ api.zones.remove('spawn');
 - Zones are checked on player movement and on first spawn.
 - Overlaps are allowed: if zones overlap, all matching zones can fire.
 - A zone tracks a player as a **point** (player position), not a full bounding box.
-- If you need “soft zones” (radius-based), implement it by distance checks in `setInterval`.
+- Runtime zones are not persisted in the scene file; scene-defined zones are persisted.
+- For shared physics controllers, zones are replicated to clients so `ctx.world.isInZone(...)` can be used safely.
+- Runtime zones are not scene objects, so they may not appear in the editor hierarchy; visualize them with primitives if needed.
 
 ---
 

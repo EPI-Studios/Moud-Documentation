@@ -10,6 +10,10 @@ Instead of spawning full models, you can draw simple shapes:
 
 They’re server-side (`api.primitives`) and synced to clients.
 
+Primitives can also create **server-side physics colliders** via `options.physics`, but note:
+
+- Shared physics prediction controllers use their own `CollisionWorld` and do not automatically collide with Jolt rigid bodies.
+
 ---
 
 ## The model
@@ -60,7 +64,9 @@ Material fields are simple:
 - `r/g/b/a` in 0..1
 - `unlit`: no shading (good for debug overlays)
 - `renderThroughBlocks`: “x-ray”
-- `doubleSided`: render both sides of faces
+- `doubleSided`: render both sides of faces (recommended for `plane`)
+
+Note: `plane` is a single quad, so with culling enabled it will be visible only from one side. Use `doubleSided: true` when you want a two-sided floor/marker.
 - `texture`: a texture id (same idea as displays: `moud:textures/...png`)
 
 ---
