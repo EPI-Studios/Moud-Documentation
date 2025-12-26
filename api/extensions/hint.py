@@ -48,8 +48,9 @@ class HintPreprocessor(Preprocessor):
                 
                 valid_types = ['info', 'warning', 'error', 'success', 'tip', 'note']
                 if hint_type not in valid_types:
+                    invalid_type = hint_type
                     hint_type = 'info'
-                    logger.warning(f"Invalid hint type '{hint_match.group(1)}', defaulting to 'info'")
+                    logger.warning(f"Invalid hint type '{invalid_type}', defaulting to 'info'")
                 
                 icon = icon_map.get(hint_type, icon_map['info'])
                 display_title = hint_title if hint_title else hint_type.title()
@@ -98,6 +99,12 @@ class HintPreprocessor(Preprocessor):
                 'tip': '<span class="material-symbols-rounded">lightbulb</span>',
                 'note': '<span class="material-symbols-rounded">description</span>'
             }
+
+            valid_types = ['info', 'warning', 'error', 'success', 'tip', 'note']
+            if hint_type not in valid_types:
+                invalid_type = hint_type
+                hint_type = 'info'
+                logger.warning(f"Invalid hint type '{invalid_type}', defaulting to 'info'")
 
             icon = icon_map.get(hint_type, icon_map['info'])
             display_title = hint_title if hint_title else hint_type.title()

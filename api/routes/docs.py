@@ -4,7 +4,8 @@ import urllib.parse
 import os
 import hashlib
 import logging
-from api.utils.markdown import convert_markdown_to_html, remove_first_h1, extract_title_from_markdown, extract_description_from_markdown
+from email.utils import formatdate
+from api.utils.markdown import render_markdown_file
 from api.utils.github_utils import get_file_at_commit, get_template_history, get_document_contributors, get_document_author, is_recently_updated
 from api.utils.sanitization import sanitize_filename, is_safe_path
 from api.utils.documents import get_all_documents, get_documents_by_section, get_subdocuments, get_first_subdocument, get_sibling_navigation
@@ -129,7 +130,6 @@ def serve_template(template_name):
     try:
         template_name = urllib.parse.unquote(template_name)
         template_name = sanitize_filename(template_name)
-        documents_by_category = get_documents_by_section()
 
         logger.info(f"Serving template: {template_name}")
 
@@ -155,31 +155,38 @@ def serve_template(template_name):
             else:
                 abort(404)
 
-        git_history = get_template_history(template_name)
-        contributors = get_document_contributors(template_name)
-        author = get_document_author(template_name)
-        recently_updated = is_recently_updated(template_name)
-
-        subdocuments = get_subdocuments(template_name)
-        prev_doc, next_doc = get_sibling_navigation(template_name)
-
         if os.path.exists(html_path) and is_safe_path(html_path, docs_dir):
             return render_template(f"docs/{template_name}.html")
 
         elif os.path.exists(md_path) and is_safe_path(md_path, docs_dir):
             try:
-                with open(md_path, 'r', encoding='utf-8') as f:
-                    md_content = f.read()
+                file_stat = os.stat(md_path)
+                etag_value = hashlib.sha1(
+                    f"{md_path}:{file_stat.st_mtime_ns}:{file_stat.st_size}:{int(is_print)}".encode("utf-8")
+                ).hexdigest()
+                etag = f"\"{etag_value}\""
+                if request.headers.get("If-None-Match") == etag and not is_print:
+                    response = Response(status=304)
+                    response.headers["ETag"] = etag
+                    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
+                    response.headers["Last-Modified"] = formatdate(file_stat.st_mtime, usegmt=True)
+                    return response
 
-                title = extract_title_from_markdown(md_content) or template_name.split('/')[-1].replace('_', ' ').title()
-                description = extract_description_from_markdown(md_content)
-
-                safe_html = convert_markdown_to_html(md_content)
-                safe_html = remove_first_h1(safe_html)
+                raw_title, description, safe_html = render_markdown_file(md_path)
+                title = raw_title or template_name.split('/')[-1].replace('_', ' ').title()
 
                 template = 'print.html' if is_print else 'markdown_base.html'
 
                 breadcrumbs = generate_breadcrumbs(template_name)
+
+                documents_by_category = get_documents_by_section()
+                subdocuments = get_subdocuments(template_name)
+                prev_doc, next_doc = get_sibling_navigation(template_name)
+
+                git_history = get_template_history(template_name)
+                contributors = get_document_contributors(template_name)
+                author = get_document_author(template_name)
+                recently_updated = is_recently_updated(template_name)
 
                 response = render_template(
                     template, 
@@ -205,9 +212,9 @@ def serve_template(template_name):
 
                 if not is_print:
                     response = Response(response)
-                    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-                    response.headers['Pragma'] = 'no-cache'
-                    response.headers['Expires'] = '0'
+                    response.headers["ETag"] = etag
+                    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
+                    response.headers["Last-Modified"] = formatdate(file_stat.st_mtime, usegmt=True)
                 return response
 
             except Exception as e:

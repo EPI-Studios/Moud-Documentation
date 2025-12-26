@@ -6,6 +6,10 @@ load_dotenv()
 GITHUB_REPO = "EPI-Studios/Moud-Documentation"
 DOCS_DIR = os.path.join(os.path.dirname(__file__), 'templates', 'docs')
 
+GITHUB_API_ENABLED = os.getenv("ENABLE_GITHUB_API", "0").strip().lower() in {"1", "true", "yes", "on"}
+GITHUB_API_TIMEOUT_SECONDS = float(os.getenv("GITHUB_API_TIMEOUT_SECONDS", "0.75"))
+RECENTLY_UPDATED_DAYS = int(os.getenv("RECENTLY_UPDATED_DAYS", "14"))
+
 DATABASE_CONFIG = {
     'type': os.getenv('DB_TYPE', 'sqlite'),
     'host': os.getenv('DB_HOST', 'localhost'),
@@ -23,4 +27,3 @@ SITE_CONFIG = {
     'base_url': os.getenv('SITE_BASE_URL', 'https://docs.epitygmata.fr'), 
     'github_edit_base': f'https://github.com/{GITHUB_REPO}/edit/main/api/templates/docs'
 }
-

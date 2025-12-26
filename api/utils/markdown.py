@@ -1,6 +1,8 @@
 import markdown
 import re
 import bleach
+import os
+import functools
 from api.extensions.glsl import GlslExtension
 from api.extensions.desmos import DesmosExtension
 from api.extensions.mermaid import MermaidExtension
@@ -73,6 +75,22 @@ def extract_description_from_markdown(md_content):
             break
 
     return description
+
+@functools.lru_cache(maxsize=256)
+def _render_markdown_file_cached(md_path, mtime_ns):
+    with open(md_path, 'r', encoding='utf-8') as f:
+        md_content = f.read()
+
+    title = extract_title_from_markdown(md_content)
+    description = extract_description_from_markdown(md_content)
+
+    safe_html = convert_markdown_to_html(md_content)
+    safe_html = remove_first_h1(safe_html)
+    return title, description, safe_html
+
+def render_markdown_file(md_path):
+    mtime_ns = os.stat(md_path).st_mtime_ns
+    return _render_markdown_file_cached(md_path, mtime_ns)
 
 def convert_markdown_to_html(md_content):
     try:
