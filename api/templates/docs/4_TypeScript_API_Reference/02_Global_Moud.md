@@ -66,16 +66,19 @@ Moud.input.onKey('key.keyboard.escape', (pressed) => {
 ```ts
 Moud.camera.enableCustomCamera();
 Moud.camera.snapTo({
-    position: MoudMath.Vector3.zero(),
-    yaw: 180,
-    pitch: -25,
-    fov: 70
+    position: Moud.camera.createVector3(0, 80, 0),
+    yaw: 90,
+    pitch: -20,
+    fov: 70,
 });
 
-Moud.camera.createCinematic([
-    { x: 0, y: 80, z: 0, yaw: 90, duration: 1200 },
-    { x: 10, y: 76, z: 10, yaw: 135, duration: 1200 }
-]);
+Moud.camera.transitionTo({
+    position: Moud.camera.createVector3(10, 76, 10),
+    yaw: 135,
+    duration: 1200,
+});
+
+setTimeout(() => Moud.camera.disableCustomCamera(), 2000);
 ```
 
 

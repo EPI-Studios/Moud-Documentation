@@ -49,7 +49,14 @@ Moud.input.lockMouse(true);
 
 ## Camera (`Moud.camera`)
 
-### Model
+`Moud.camera` is a **client-only** camera controller exposed to client scripts running inside the Fabric mod.
+
+There are two camera modes:
+
+- **Custom camera**: fully overrides the game camera (good for cinematics/cutscenes).
+- **Scriptable camera**: applies offsets/effects *on top of* the vanilla camera (good for recoil, shake, shoulder cams, body-cam bob, etc.).
+
+### Custom camera (full override)
 
 When the custom camera is enabled, you’re controlling a *separate camera pose* (position + yaw/pitch/roll + FOV).
 
@@ -77,56 +84,22 @@ Moud.camera.transitionTo({
 });
 ```
 
-### Follow modes
+### Chaining transitions
 
-Use `followTo` when you update a target pose frequently (for example: every tick from input).
+`transitionTo` is non-blocking, so chain with `setTimeout`:
 
 ```ts
-Moud.camera.followTo({
-    position: MoudMath.Vector3.zero(),
-    yaw: 0,
-    pitch: 0,
-    smoothing: 0.9
-});
+Moud.camera.transitionTo({ position: Moud.camera.createVector3(0, 90, 0), yaw: 180, pitch: -25, duration: 1200 });
+setTimeout(() => {
+    Moud.camera.transitionTo({ position: Moud.camera.createVector3(0, 75, 20), yaw: 180, pitch: -10, duration: 900 });
+}, 1200);
 ```
 
-Use `smoothFollow` when you want *physics-like* smoothing:
+### Perspective helpers
 
 ```ts
-Moud.camera.smoothFollow({
-    position: MoudMath.Vector3.zero(),
-    yaw: 0,
-    smoothTime: 0.15,
-    maxSpeed: 9999
-});
-```
-
-### Look-at
-
-```ts
-Moud.camera.lookAt({ x: 0, y: 64, z: 0 });
-// later
-Moud.camera.clearLookAt();
-```
-
-### Paths + keyframes
-
-```ts
-Moud.camera.followPath(
-    [
-        { x: 0, y: 80, z: 0, yaw: 90 },
-        { x: 10, y: 75, z: 10, yaw: 135 },
-        { x: 0, y: 70, z: 20, yaw: 180 }
-    ],
-    4000,
-    false
-);
-
-Moud.camera.createCinematic([
-    { x: 0, y: 85, z: 0, yaw: 90, pitch: -20, fov: 80, duration: 1500 },
-    { x: 12, y: 80, z: 12, yaw: 135, pitch: -15, fov: 70, duration: 1500 },
-    { x: 0, y: 75, z: 22, yaw: 180, pitch: -10, fov: 60, duration: 2000 }
-]);
+// show the player's body while the camera is detached
+Moud.camera.setThirdPerson(true);
 ```
 
 ### Dolly zoom
@@ -139,9 +112,88 @@ Moud.camera.dollyZoom({
 });
 ```
 
+### Scriptable camera (offsets + effects)
+
+Scriptable camera blends with vanilla camera. The player retains normal mouse look and movement; you only apply modifiers.
+
+```ts
+Moud.camera.enableScriptableCamera();
+
+// Shoulder camera: right + slightly up + pulled back
+Moud.camera.setPositionOffset({ x: 0.8, y: 0.3, z: -0.5, smoothTime: 0.25 });
+
+// Small roll tilt
+Moud.camera.setRotationOffset({ roll: 6, smoothTime: 0.2 });
+
+// Zoom in (negative narrows FOV)
+Moud.camera.setFovOffset({ offset: -15, smoothTime: 0.2 });
+```
+
+#### Shake
+
+```ts
+Moud.camera.shake({ intensity: 0.6, frequency: 18, duration: 400 });
+// later
+Moud.camera.stopShake();
+```
+
+#### Velocity tilt
+
+```ts
+Moud.camera.enableVelocityTilt({ amount: 4.0, smoothing: 0.12 });
+// later
+Moud.camera.disableVelocityTilt();
+```
+
+#### Soft look-at (blend with player input)
+
+```ts
+Moud.camera.setSoftLookAt({ x: 0, y: 64, z: 0, strength: 0.7, smoothTime: 0.25 });
+// later
+Moud.camera.clearSoftLookAt();
+```
+
+#### Rotation limits / axis locks
+
+```ts
+Moud.camera.setPitchLimits({ min: -45, max: 45 });
+Moud.camera.setYawLimits({ range: 90 }); // +/- 90 degrees from current yaw
+
+Moud.camera.lockAxis('yaw');
+setTimeout(() => Moud.camera.unlockAxis('yaw'), 1000);
+
+Moud.camera.clearPitchLimits();
+Moud.camera.clearYawLimits();
+```
+
+#### Follow target (lag camera)
+
+```ts
+Moud.camera.setFollowTarget({ x: 0, y: 80, z: 0, lag: 0.2 });
+Moud.camera.updateFollowTarget({ x: 10, y: 80, z: 10 });
+Moud.camera.stopFollowTarget();
+```
+
+#### Cinematic bob + Perlin shake
+
+```ts
+Moud.camera.setCinematicBob({ enabled: true, intensity: 1.2, rollMultiplier: 3.5 });
+
+Moud.camera.enablePerlinShake({ autoFromVelocity: true });
+Moud.camera.addTrauma(0.25);
+Moud.camera.disablePerlinShake();
+```
+
+#### Reset
+
+```ts
+Moud.camera.resetScriptableCamera();              // smooth reset
+Moud.camera.resetScriptableCamera({ instant: true }); // instant reset
+```
+
 ## Server-side camera (`player.camera`)
 
-On the server you can drive the same custom camera controller through `player.camera`:
+On the server, `player.camera` is an authoritative **camera lock** controller (it sends packets to the client).
 
 ```ts
 api.on('player.chat', (event) => {
@@ -149,31 +201,16 @@ api.on('player.chat', (event) => {
     if (event.getMessage() !== '!cine') return;
     event.cancel();
 
-    player.camera.enableCustomCamera();
-    player.camera.snapTo({ position: api.math.vector3(0, 80, 0), yaw: 180, pitch: -25, fov: 70 });
-    player.camera.followPath([{ x: 0, y: 80, z: 0, yaw: 90 }], 2000, false);
+    player.camera.lock(api.math.vector3(0, 80, 0), { yaw: 180, pitch: -25 });
+    player.camera.smoothTransitionTo(
+        api.math.vector3(0, 75, 20),
+        { yaw: 180, pitch: -10 },
+        2000
+    );
+
+    // release after the shot
+    setTimeout(() => player.camera.release(), 2500);
 });
 ```
 
-The big difference: `player.camera` is *server-driven* (it sends packets to the client), so don’t spam it every frame unless you really mean to.
-
-
-### Code Example
-```ts
-let camActive = false;
-
-Moud.input.onKey('key.keyboard.c', (pressed) => {
-    if (!pressed) return;
-    camActive = !camActive;
-
-    if (camActive) {
-        Moud.camera.enableCustomCamera();
-        Moud.camera.snapTo({ 
-            position: api.math.vector3(0, 80, 0), 
-            lookAt: player.getPos() 
-        });
-    } else {
-        Moud.camera.disableCustomCamera();
-    }
-});
-```
+The key difference: `player.camera` is *server-driven*, so use it for discrete camera beats (lock, transition, release) instead of per-frame effects.

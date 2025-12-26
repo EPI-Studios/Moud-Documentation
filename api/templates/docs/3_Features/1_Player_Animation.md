@@ -91,6 +91,5 @@ Animations always run on the client of the player you target. If you need to pre
 
 
 - **Drive from events** – `player.movement.start/stop` events are great entry points to trigger locomotion overrides or footstep animations
-- **Camera-aware** – when using detached cameras (`player.camera.enableCustomCamera()`), manually adjust first-person visibility to prevent limbs from clipping the new view.
-
+- **Camera-aware** – when using server-driven camera locks (`player.camera.lock(...)`), manually adjust first-person visibility to prevent limbs from clipping the new view.
 

@@ -3,6 +3,8 @@ Client-side rendering helpers backed by Foundry Veil.
 
 This API is only available on clients running the Moud Fabric mod.
 
+Everything here lives under `Moud.rendering`.
+
 ## Animation Frame
 
 ### requestAnimationFrame / cancelAnimationFrame
@@ -35,17 +37,43 @@ removeFramebuffer(framebufferId: string): void
 
 `framebufferId` must be a valid Minecraft id like `moud:minimap`.
 
-Options:
+Common options:
 
 - `scale`: render at a fraction of the screen size (default: `1`)
 - `width` / `height`: fixed resolution (overrides `scale`)
-- `depth`: `true` to add a depth attachment
-- `autoClear` and `clearColor`
+- `depth`: `true` to add a depth attachment (or a full attachment object)
+- `autoClear` and `clearColor` (clears once per frame)
+
+Color attachments (advanced):
+
+- `colorBuffers` / `color_buffers`: an array of attachments
+- `color`: single attachment or array (convenience)
+
+Each attachment can define:
+
+- `type`: `'texture' | 'render_buffer'` (default: `'texture'`)
+- `format`: Veil format name like `RGBA8`, `RGB16F`, `DEPTH_COMPONENT`
+- `levels`: mip levels / samples (default: `1`)
+- `linear`: linear filtering for texture attachments
+- `name`: optional alias (exposed to shaders as a sampler uniform)
 
 * **Example**:
 
 ```ts
 Moud.rendering.createFramebuffer("moud:minimap", { scale: 0.5, depth: true });
+```
+
+* **Example (named color attachment)**:
+
+```ts
+Moud.rendering.createFramebuffer("moud:scene_color", {
+    width: 1280,
+    height: 720,
+    autoClear: true,
+    clearColor: { r: 0, g: 0, b: 0, a: 1, depth: 1 },
+    colorBuffers: [{ format: "RGBA16F", name: "SceneColor", linear: true }],
+    depth: true,
+});
 ```
 
 ## Render Passes
@@ -58,7 +86,13 @@ removeRenderPass(passId: string): void
 setRenderPassEnabled(passId: string, enabled: boolean): void
 ```
 
-Pass types:
+All passes support:
+
+- `stage?: string` — render stage to execute at (defaults to `after_level`)
+- `order?: number` — lower runs earlier within a stage
+- `enabled?: boolean`
+
+Pass types (`pass.type`):
 
 - `world`: renders the world into `out`
 - `blit`: full-screen shader pass from `in` to `out`
@@ -78,6 +112,66 @@ Moud.rendering.defineRenderPass("minimap_world", {
     },
     fov: 70,
     clear: true
+});
+```
+
+### Stages
+
+Built-in stages include:
+
+- `after_sky`
+- `after_solid_blocks`
+- `after_cutout_mipped_blocks`
+- `after_cutout_blocks`
+- `after_entities`
+- `after_block_entities`
+- `after_translucent_blocks`
+- `after_tripwire_blocks`
+- `after_particles`
+- `after_weather`
+- `after_level`
+
+### Pass specifics
+
+**Blit**
+
+```ts
+Moud.rendering.defineRenderPass("bloom_blit", {
+    type: "blit",
+    stage: "after_level",
+    shader: "moud:shaders/bloom",
+    in: "moud:scene_color",
+    out: "moud:scene_color",
+    uniforms: {
+        threshold: 1.0,
+        intensity: 0.6,
+        tint: { r: 1, g: 0.9, b: 1.0 },
+    },
+});
+```
+
+Uniform values can be `number`, `boolean`, `Vector3`, `Quaternion`, arrays, and `clearColor`-like objects.
+
+**Copy**
+
+```ts
+Moud.rendering.defineRenderPass("copy_depth", {
+    type: "copy",
+    stage: "after_level",
+    in: "moud:scene_color",
+    out: "moud:minimap",
+    depth: true,
+});
+```
+
+**Clear**
+
+```ts
+Moud.rendering.defineRenderPass("clear_minimap", {
+    type: "clear",
+    stage: "after_level",
+    target: "moud:minimap",
+    clearColor: { r: 0, g: 0, b: 0, a: 0, depth: 1 },
 });
 ```
 
@@ -101,6 +195,12 @@ api.world.createDisplay({
 
 Each client resolves `moud:fbo/...` to its own framebuffer texture.
 
+The SDK also includes a helper:
+
+```ts
+const texId = framebufferExportTextureId("moud:minimap");
+```
+
 ## Custom Render Types
 
 ### createRenderType / setShaderUniform
@@ -112,3 +212,25 @@ setShaderUniform(shaderId: string, uniformName: string, value: number | boolean)
 
 Creates a render type backed by a custom shader program, and lets you update uniforms.
 
+`RenderTypeOptions`:
+
+- `shader: string` (required)
+- `textures?: string[]`
+- `transparency?: string` (defaults to `opaque`)
+- `cull?: boolean` (defaults to `true`)
+- `lightmap?: boolean`
+- `depthTest?: boolean` (defaults to `true`)
+
+* **Example**:
+
+```ts
+const renderTypeId = Moud.rendering.createRenderType({
+    shader: "moud:shaders/hologram",
+    textures: ["moud:textures/hologram.png"],
+    transparency: "translucent",
+    cull: false,
+    depthTest: true,
+});
+
+Moud.rendering.setShaderUniform(renderTypeId, "time", performance.now());
+```

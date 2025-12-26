@@ -10,6 +10,7 @@ If you only remember one rule: **use `api` on the server** (even though `Moud` a
 - `api.server` - broadcast, player list, console commands
 - `api.world` - blocks, time, raycasts, world objects (text, displays, models)
 - `api.worlds` - multi-world manager (create/load/save/unload instances)
+- `api.physics` - player physics + Jolt constraints
 - `api.zones` - trigger volumes (enter/leave)
 - `api.particles` - particle spawns + emitters
 - `api.ik` - inverse kinematics chains
@@ -86,6 +87,8 @@ api.on('player.click', (player) => {
 });
 ```
 
+`hit.model` is set when you hit a 3D model created with `api.world.createModel(...)`.
+
 ### Create a trigger zone
 
 ```ts
@@ -105,6 +108,28 @@ api.zones.create(
 ```ts
 api.commands.register('spawn', (player) => {
     player.teleport(0, 64, 0);
+});
+```
+
+### Physics constraint (distance)
+
+```ts
+api.on('player.join', (player) => {
+    api.physics.setPlayerPhysics(player, true);
+
+    const crate = api.world.createPhysicsModel({
+        model: 'moud:models/crate.obj',
+        position: api.math.vector3(0, 70, 0),
+        physics: { mass: 5, playerPush: true }
+    });
+
+    const rope = api.physics.createDistanceConstraint({
+        a: player,
+        b: crate,
+        maxDistance: 4
+    });
+
+    player.sendMessage(`constraint id=${rope}`);
 });
 ```
 

@@ -1,8 +1,6 @@
 # Cursor & Interaction
 
-The `CursorService` hooks raw mouse movement from the Fabric mod, raycasts against blocks and scripted entities on the server, and exposes a high-level API through `player.cursor`.
-
-
+The `CursorService` hooks raw mouse movement from the Fabric mod, raycasts against blocks and entities on the server, and exposes a high-level API through `player.cursor`.
 
 Available methods:
 
@@ -40,7 +38,7 @@ api.on('player.click', (player, data) => {
 
 ## Entity Interaction
 
-When the cursor hovers or clicks on scripted entities, `CursorService` emits `entity.interact` events with detailed context:
+When the cursor hovers or clicks on entities (models, scripted entities, etc.), `CursorService` emits `entity.interact` events with detailed context:
 
 ```ts
 api.on('entity.interact', (event) => {
@@ -64,10 +62,10 @@ api.on('entity.interact', (event) => {
 
 ## Camera Integration
 
-When you call `player.camera.enableCustomCamera()`, `CursorService` switches to camera-driven raycasts rather than player-head origin. 
+When the server locks the player camera (`player.camera.lock(...)`), `CursorService` switches to camera-driven raycasts rather than player-head origin.
 
 ```ts
-player.camera.enableCustomCamera();
+player.camera.lock(api.math.vector3(0, 80, 0), { yaw: 180, pitch: -25 });
 player.cursor.projectOntoBlock(true);
 player.cursor.setVisible(true);
 ```
@@ -75,4 +73,3 @@ player.cursor.setVisible(true);
 ## Sharing Cursor Data
 
 Use `cursor.setVisibleToAll()` so other players see the pointer or `hideFrom` to limit it to a certain range of players. Additional helper packets broadcast cursor positions when `isGloballyVisible()` is true, so there’s virtually no extra scripting required to mirror the pointer.
-

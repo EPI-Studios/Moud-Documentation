@@ -144,8 +144,9 @@ player.getClient().send('ui:toast', { text: 'Hello from server' });
 Server-driven cinematics (sends packets to the client):
 
 ```ts
-player.camera.enableCustomCamera();
-player.camera.snapTo({ position: api.math.vector3(0, 80, 0), yaw: 180, pitch: -25, fov: 70 });
+player.camera.lock(api.math.vector3(0, 80, 0), { yaw: 180, pitch: -25 });
+player.camera.smoothTransitionTo(api.math.vector3(0, 75, 20), { yaw: 180, pitch: -10 }, 2000);
+setTimeout(() => player.camera.release(), 2500);
 ```
 
 Full camera doc: `docs/4_TypeScript_API_Reference/05_Input_and_Camera.md`

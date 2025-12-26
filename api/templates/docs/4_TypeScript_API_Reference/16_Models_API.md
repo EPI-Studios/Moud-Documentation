@@ -63,33 +63,54 @@ statue.setTransform(
 statue.setTexture('moud:textures/statue_glow.png');
 ```
 
-### Collision
+### Collision + collision mode
+
+Collision bounds are configured at spawn time via `createModel({ collision: ... })` / `createPhysicsModel({ collision: ... })`.
+
+At runtime, you can still hint how the server should treat collisions with:
 
 ```ts
-// Disable collisions entirely
-statue.setCollisionBox(0, 0, 0);
-
 // Change collision “shape mode” (string form is supported)
-statue.setCollisionMode('STATIC_MESH');
+statue.setCollisionMode('mesh');
 ```
 
-### Physics helpers
+If you need to change the actual collision bounds, recreate the model with different `collision` options.
 
-Attach constraints:
+### Anchoring (parenting transforms)
+
+Models can be anchored to blocks, entities/players, or other models. You can do this at spawn time with `anchor`, or at runtime with the `setAnchor...` methods.
 
 ```ts
-// Follow an entity (uuid) with an offset
-statue.attachToEntity(player.getUuid(), api.math.vector3(0, 2, 0), true);
+// follow a player with a local offset (simple overload)
+statue.setAnchorToPlayer(player, api.math.vector3(0, 2.0, 0));
 
-// Spring tether (hanging lamp)
-statue.attachSpring(api.math.vector3(0, 80, 0), 15, 0.8, 2.0);
+// anchor to an entity UUID with full control
+statue.setAnchorToEntity(
+    player.getUuid(),
+    api.math.vector3(0, 2.0, 0),
+    api.math.quaternionFromEuler(0, 0, 0),
+    api.math.vector3(1, 1, 1),
+    true,
+    true,
+    false,
+    true
+);
 ```
 
-Inspect physics state (only meaningful when physics is enabled):
+Clear the anchor:
 
 ```ts
-const state = crate.getPhysicsState();
-console.log(state.linearVelocity, state.onGround);
+statue.clearAnchor();
+```
+
+### Physics helpers (for physics models)
+
+Physics is server-side. Use `api.physics` to apply impulses or read/write velocities:
+
+```ts
+api.physics.applyImpulse(crate, api.math.vector3(0, 6, 0));
+api.physics.setLinearVelocity(crate, api.math.vector3(2, 0, 0));
+console.log(api.physics.getLinearVelocity(crate));
 ```
 
 ### Cleanup

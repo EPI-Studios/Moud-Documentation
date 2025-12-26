@@ -64,13 +64,16 @@ const art = api.world.createModel({
 | `scale`     | Per-axis scale (`Vector3.one()` by default).                                                                                           |
 | `texture`   | Optional texture override for the model material.                                                                                      |
 | `collision` | `true`, `false`, or a custom box (`width/height/depth`). If omitted, a box is inferred from the scale so the model can receive clicks. |
+| `collisionMode` | Optional collision mode hint (`auto`, `convex`, `mesh`, ...).                                                                      |
+| `anchor`    | Optional parenting/attachment configuration (follow blocks/entities/players/models).                                                   |
 
 The returned `Model` instance can be updated at runtime:
 
 ```ts
 art.setRotationFromEuler(0, (Date.now() / 40) % 360, 0);
 art.setTexture('moud:textures/statue_glow.png');
-art.setCollisionBox(0, 0, 0); // make the model intangible
+// collision bounds are configured at spawn time via createModel({ collision: ... }).
+// if you need to change collision bounds later, recreate the model.
 ```
 
 Call `art.remove()` when the model should be cleaned up.

@@ -27,6 +27,9 @@ const map = api.worlds.loadWorld('arena', 'worlds/arena');
 
 // world save file (.polar)
 const saved = api.worlds.loadWorld('arena_saved', '.moud/scenes/arena_saved.polar');
+
+// override the scene id used for world metadata (only used for `.polar` saves)
+const savedWithId = api.worlds.loadWorld('arena_saved2', '.moud/scenes/arena_saved2.polar', 'arena_saved2');
 ```
 
 Notes about `path`:

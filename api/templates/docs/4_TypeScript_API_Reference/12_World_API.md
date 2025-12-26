@@ -33,7 +33,13 @@ const hit = api.world.raycast({
 });
 
 if (hit.didHit) {
-    api.server.broadcast(`Hit block=${hit.blockType} entity=${hit.entity?.getName()}`);
+    if (hit.blockType) {
+        api.server.broadcast(`Hit block ${hit.blockType}`);
+    } else if (hit.model) {
+        api.server.broadcast(`Hit model id=${hit.model.getId()} path=${hit.model.getModelPath()}`);
+    } else if (hit.entity) {
+        api.server.broadcast(`Hit player ${hit.entity.getName()}`);
+    }
 }
 ```
 
