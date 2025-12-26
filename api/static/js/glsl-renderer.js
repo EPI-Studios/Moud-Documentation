@@ -1,20 +1,46 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const glslElements = document.querySelectorAll('.mdoc-glsl-canvas');
-
+function mdocInitGlslCanvases() {
+    const glslElements = document.querySelectorAll('.mdoc-glsl-canvas:not([data-mdoc-initialized="1"])');
     if (glslElements.length === 0) {
         return;
     }
 
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/glslCanvas@0.2.6/dist/GlslCanvas.min.js';
-    script.onload = initializeGlslCanvases;
-    document.head.appendChild(script);
-});
+    if (window.GlslCanvas) {
+        initializeGlslCanvases(glslElements);
+        return;
+    }
 
-function initializeGlslCanvases() {
-    const placeholders = document.querySelectorAll('.mdoc-glsl-canvas');
+    if (window.__mdocGlslCanvasLoading) {
+        window.__mdocGlslCanvasLoading.then(() => initializeGlslCanvases(glslElements));
+        return;
+    }
+
+    window.__mdocGlslCanvasLoading = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/glslCanvas@0.2.6/dist/GlslCanvas.min.js';
+        script.onload = () => resolve();
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+
+    window.__mdocGlslCanvasLoading
+        .then(() => initializeGlslCanvases(glslElements))
+        .catch(() => {
+            // noop
+        });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mdocInitGlslCanvases);
+} else {
+    mdocInitGlslCanvases();
+}
+document.addEventListener('mdoc:content-updated', mdocInitGlslCanvases);
+
+function initializeGlslCanvases(placeholders) {
+    placeholders = placeholders || document.querySelectorAll('.mdoc-glsl-canvas:not([data-mdoc-initialized="1"])');
 
     placeholders.forEach((placeholder, index) => {
+        placeholder.setAttribute('data-mdoc-initialized', '1');
         try {
             const encodedShader = placeholder.getAttribute('data-fragment-shader');
             const simpleDisplay = placeholder.getAttribute('data-simple-display') === 'true';

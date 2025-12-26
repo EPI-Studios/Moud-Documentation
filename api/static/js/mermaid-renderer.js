@@ -1,26 +1,52 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const mermaidElements = document.querySelectorAll('.mdoc-mermaid');
-    
+function mdocInitMermaidDiagrams() {
+    const mermaidElements = document.querySelectorAll('.mdoc-mermaid:not([data-mdoc-initialized="1"])');
     if (mermaidElements.length === 0) {
         return;
     }
-    
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
-    script.onload = initializeMermaidDiagrams;
-    document.head.appendChild(script);
-});
 
-function initializeMermaidDiagrams() {
+    if (window.mermaid) {
+        initializeMermaidDiagrams(mermaidElements);
+        return;
+    }
+
+    if (window.__mdocMermaidLoading) {
+        window.__mdocMermaidLoading.then(() => initializeMermaidDiagrams(mermaidElements));
+        return;
+    }
+
+    window.__mdocMermaidLoading = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+        script.onload = () => resolve();
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+
+    window.__mdocMermaidLoading
+        .then(() => initializeMermaidDiagrams(mermaidElements))
+        .catch(() => {
+            // noop
+        });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mdocInitMermaidDiagrams);
+} else {
+    mdocInitMermaidDiagrams();
+}
+document.addEventListener('mdoc:content-updated', mdocInitMermaidDiagrams);
+
+function initializeMermaidDiagrams(placeholders) {
     mermaid.initialize({
         startOnLoad: false,
         theme: 'neutral',
         securityLevel: 'strict'
     });
     
-    const placeholders = document.querySelectorAll('.mdoc-mermaid');
+    placeholders = placeholders || document.querySelectorAll('.mdoc-mermaid:not([data-mdoc-initialized="1"])');
     
     placeholders.forEach((placeholder, index) => {
+        placeholder.setAttribute('data-mdoc-initialized', '1');
         try {
             const encodedDiagram = placeholder.getAttribute('data-diagram');
             const simpleDisplay = placeholder.getAttribute('data-simple-display') === 'true';
@@ -29,6 +55,8 @@ function initializeMermaidDiagrams() {
                 console.error('No diagram definition found for Mermaid diagram');
                 return;
             }
+
+            placeholder.innerHTML = '';
             
             const diagramDefinition = atob(encodedDiagram);
             

@@ -1,20 +1,46 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const desmosElements = document.querySelectorAll('.mdoc-desmos-graph');
-    
+function mdocInitDesmosGraphs() {
+    const desmosElements = document.querySelectorAll('.mdoc-desmos-graph:not([data-mdoc-initialized="1"])');
     if (desmosElements.length === 0) {
         return;
     }
-    
-    const script = document.createElement('script');
-    script.src = 'https://www.desmos.com/api/v1.7/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6';
-    script.onload = initializeDesmosGraphs;
-    document.head.appendChild(script);
-});
 
-function initializeDesmosGraphs() {
-    const placeholders = document.querySelectorAll('.mdoc-desmos-graph');
+    if (window.Desmos) {
+        initializeDesmosGraphs(desmosElements);
+        return;
+    }
+
+    if (window.__mdocDesmosLoading) {
+        window.__mdocDesmosLoading.then(() => initializeDesmosGraphs(desmosElements));
+        return;
+    }
+
+    window.__mdocDesmosLoading = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://www.desmos.com/api/v1.7/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6';
+        script.onload = () => resolve();
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+
+    window.__mdocDesmosLoading
+        .then(() => initializeDesmosGraphs(desmosElements))
+        .catch(() => {
+            // noop
+        });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mdocInitDesmosGraphs);
+} else {
+    mdocInitDesmosGraphs();
+}
+document.addEventListener('mdoc:content-updated', mdocInitDesmosGraphs);
+
+function initializeDesmosGraphs(placeholders) {
+    placeholders = placeholders || document.querySelectorAll('.mdoc-desmos-graph:not([data-mdoc-initialized="1"])');
     
     placeholders.forEach((placeholder, index) => {
+        placeholder.setAttribute('data-mdoc-initialized', '1');
         try {
             const encodedConfig = placeholder.getAttribute('data-graph-config');
             
@@ -22,6 +48,8 @@ function initializeDesmosGraphs() {
                 console.error('No configuration found for Desmos graph');
                 return;
             }
+
+            placeholder.innerHTML = '';
             
             const configString = atob(encodedConfig);
             const config = JSON.parse(configString);

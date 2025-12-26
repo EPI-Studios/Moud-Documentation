@@ -139,8 +139,11 @@ function initializeSingleP5Sketch(placeholderElement, index) {
 
 function initializeAllP5Sketches() {
     console.log("P5.js library loaded successfully. Initializing sketches.");
-    const p5jsPlaceholders = document.querySelectorAll('.mdoc-p5js-sketch');
-    p5jsPlaceholders.forEach(initializeSingleP5Sketch);
+    const p5jsPlaceholders = document.querySelectorAll('.mdoc-p5js-sketch:not([data-mdoc-initialized="1"])');
+    p5jsPlaceholders.forEach((el, idx) => {
+        el.setAttribute('data-mdoc-initialized', '1');
+        initializeSingleP5Sketch(el, idx);
+    });
 }
 
 function loadP5LibraryAndInitialize() {
@@ -176,3 +179,5 @@ if (document.readyState === 'loading') {
 } else {
     loadP5LibraryAndInitialize();
 }
+
+document.addEventListener('mdoc:content-updated', loadP5LibraryAndInitialize);

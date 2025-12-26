@@ -1,20 +1,46 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const geogebraElements = document.querySelectorAll('.mdoc-geogebra');
-    
+function mdocInitGeoGebraApplets() {
+    const geogebraElements = document.querySelectorAll('.mdoc-geogebra:not([data-mdoc-initialized="1"])');
     if (geogebraElements.length === 0) {
         return;
     }
-    
-    const script = document.createElement('script');
-    script.src = 'https://www.geogebra.org/apps/deployggb.js';
-    script.onload = initializeGeoGebraApplets;
-    document.head.appendChild(script);
-});
 
-function initializeGeoGebraApplets() {
-    const placeholders = document.querySelectorAll('.mdoc-geogebra');
+    if (window.GGBApplet) {
+        initializeGeoGebraApplets(geogebraElements);
+        return;
+    }
+
+    if (window.__mdocGeoGebraLoading) {
+        window.__mdocGeoGebraLoading.then(() => initializeGeoGebraApplets(geogebraElements));
+        return;
+    }
+
+    window.__mdocGeoGebraLoading = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://www.geogebra.org/apps/deployggb.js';
+        script.onload = () => resolve();
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+
+    window.__mdocGeoGebraLoading
+        .then(() => initializeGeoGebraApplets(geogebraElements))
+        .catch(() => {
+            // noop
+        });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mdocInitGeoGebraApplets);
+} else {
+    mdocInitGeoGebraApplets();
+}
+document.addEventListener('mdoc:content-updated', mdocInitGeoGebraApplets);
+
+function initializeGeoGebraApplets(placeholders) {
+    placeholders = placeholders || document.querySelectorAll('.mdoc-geogebra:not([data-mdoc-initialized="1"])');
     
     placeholders.forEach((placeholder, index) => {
+        placeholder.setAttribute('data-mdoc-initialized', '1');
         try {
             const encodedConfig = placeholder.getAttribute('data-geogebra-config');
             
@@ -22,6 +48,8 @@ function initializeGeoGebraApplets() {
                 console.error('No configuration found for GeoGebra applet');
                 return;
             }
+
+            placeholder.innerHTML = '';
             
             const configString = atob(encodedConfig);
             const config = JSON.parse(configString);

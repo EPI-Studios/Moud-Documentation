@@ -161,6 +161,12 @@ body {
     transition: margin 0.3s;
 }
 
+.mdoc-nav-loading .main {
+    opacity: 0.6;
+    pointer-events: none;
+    transition: opacity 0.12s ease-out;
+}
+
 .breadcrumbs { display: flex; gap: 8px; color: var(--text-dim); font-size: 0.9rem; margin-bottom: 24px; }
 .breadcrumbs a { text-decoration: none; color: var(--text-muted); }
 .breadcrumbs a:hover { color: var(--accent-blue); }
