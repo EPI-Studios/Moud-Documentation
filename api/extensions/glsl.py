@@ -21,6 +21,8 @@ class GlslPreprocessor(Preprocessor):
                 glsl_code = []
                 simple_display = True
                 no_ui = False
+                width = None
+                height = None
                 
 
                 match = re.match(r'```glsl\s+simple\s+(\d+)x(\d+)', line.strip())
@@ -32,6 +34,8 @@ class GlslPreprocessor(Preprocessor):
                 glsl_code = []
                 simple_display = False
                 no_ui = True
+                width = None
+                height = None
                 
 
                 match = re.match(r'```glsl\s+noui\s+(\d+)x(\d+)', line.strip())
@@ -43,6 +47,8 @@ class GlslPreprocessor(Preprocessor):
                 glsl_code = []
                 simple_display = False
                 no_ui = False
+                width = None
+                height = None
                 continue
             elif in_glsl_block and line.strip() == '```':
                 in_glsl_block = False

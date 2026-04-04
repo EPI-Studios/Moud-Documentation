@@ -244,10 +244,71 @@
     enhanceCodeBlocks();
     buildApiCards();
     buildToc();
+    initTabs();
 
     if (window.lucide?.createIcons) window.lucide.createIcons();
     scrollSidebarToActive();
   }
+
+  function getPreferredTabLabel() {
+    return localStorage.getItem("mdoc.tabs.preferred") || "JavaScript";
+  }
+
+
+  function applyPreferredTabAcrossPage() {
+    const preferred = getPreferredTabLabel();
+    document.querySelectorAll(".mdoc-tabs").forEach((root) => {
+      const buttons = Array.from(root.querySelectorAll(".mdoc-tab"));
+      const match = buttons.find((b) => (b.textContent || "").trim() === preferred);
+      if (match && typeof root.__mdocActivateTab === "function") {
+        root.__mdocActivateTab(match.dataset.tab);
+      }
+    });
+  }
+
+  function initTabs() {
+    const preferred = localStorage.getItem("mdoc.tabs.preferred") || "";
+
+    document.querySelectorAll(".mdoc-tabs").forEach((root) => {
+      if (root.dataset.mdocTabsInitialized === "1") return;
+      root.dataset.mdocTabsInitialized = "1";
+
+      const buttons = Array.from(root.querySelectorAll(".mdoc-tab"));
+      const panels = Array.from(root.querySelectorAll(".mdoc-tab-panel"));
+      if (buttons.length === 0 || panels.length === 0) return;
+
+      function activate(tabIndex) {
+        buttons.forEach((btn) => {
+          const isActive = btn.dataset.tab === String(tabIndex);
+          btn.classList.toggle("is-active", isActive);
+          btn.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+
+        panels.forEach((panel) => {
+          const isActive = panel.dataset.tab === String(tabIndex);
+          panel.classList.toggle("is-active", isActive);
+          panel.toggleAttribute("hidden", !isActive);
+        });
+
+        const activeBtn = buttons.find((b) => b.dataset.tab === String(tabIndex));
+        if (activeBtn) {
+          localStorage.setItem("mdoc.tabs.preferred", activeBtn.textContent?.trim() || "");
+        }
+      }
+
+      root.__mdocActivateTab = activate;
+
+      if (preferred) {
+        const match = buttons.find((b) => (b.textContent || "").trim() === preferred);
+        if (match) activate(match.dataset.tab);
+      }
+
+      buttons.forEach((btn) => {
+        btn.addEventListener("click", () => activate(btn.dataset.tab));
+      });
+    });
+  }
+
 
   window.mdocInitShellOnce = initShellOnce;
   window.mdocInitContent = initContent;

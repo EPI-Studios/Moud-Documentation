@@ -3,6 +3,9 @@ import functools
 import re
 from api.utils.github_utils import is_recently_updated
 
+SECTION_ALIASES = {
+}
+
 @functools.lru_cache(maxsize=128)
 def get_all_documents():
     try:
@@ -111,6 +114,9 @@ def extract_section_from_path(path):
     
     parts = path.split('/')
     section_part = parts[0]
+
+    if section_part in SECTION_ALIASES:
+        return SECTION_ALIASES[section_part]
     
     section_parts = section_part.split('_', 1)
     if len(section_parts) > 1 and section_parts[0].isdigit():

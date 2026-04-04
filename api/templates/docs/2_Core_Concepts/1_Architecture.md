@@ -1,82 +1,79 @@
 # Architecture
 
-Moud is a TypeScript-first workflow built around a Minestom server and a Fabric client mod.
+Understanding how Moud is put together will help you write better games. If you know what runs where and how the pieces communicate, you will have a much easier time debugging problems and designing your gameplay.
 
-You write:
 
-- server scripts (executed by the server)
-- optional client scripts (executed by the client mod)
-- assets (textures, shaders, sounds, data)
+### The Server
 
-The CLI bundles scripts and the server streams assets and client scripts to players.
+The server is the authority for everything in your game. Built on [Minestom](https://minestom.net/) (a lightweight Minecraft server library), it:
 
-```
+- **Loads your project** from disk - scenes, scripts, and asset manifests
+- **Runs your scripts** using GraalVM's polyglot engine (JavaScript and Luau)
+- **Simulates physics** with a built-in physics engine (JBullet)
+- **Manages the scene tree** - all nodes, their properties, and parent-child relationships
+- **Replicates state** to connected clients by sending batched scene operations
+- **Handles player input** received from clients and feeds it to your scripts
 
-┌──────────────┐    ┌──────────────────┐    ┌──────────────────┐
-│ CLI + SDK    │    │ Minestom Server  │    │ Fabric Client Mod │
-│ (Node.js)    │ -> │ + GraalVM (api)  │ -> │ + GraalVM (Moud)  │
-└──────────────┘    └──────────────────┘    └──────────────────┘
-│                    │                      │
-└── assets + bundle ─┴──── custom packets ───┘
+Your gameplay scripts only run on the server. This means the server is always authoritative - clients can't cheat by modifying their local state.
 
-```
+### The Client
 
-## What runs where
+The client is a Fabric mod for Minecraft. It:
 
-- Server scripts run with the `api` global (server-only).
-- Client scripts run with the `Moud` global (client-only).
-- There is no `api` global on the client.
+- **Receives scene operations** from the server and builds a local copy of the scene tree
+- **Renders everything** - 3D models, sprites, decals, CSG primitives, UI overlays, lights
+- **Applies materials and shaders** - custom GLSL shaders with exposed uniforms
+- **Captures player input** (movement, look direction, jumps) and sends it to the server
+- **Downloads assets** (textures, models, audio) from the server on demand
+- **Plays audio** for `AudioPlayer2D` and `AudioPlayer3D` nodes
 
-Server scripts have timer helpers like `setTimeout` and `setInterval`. Client-side rendering timers like `requestAnimationFrame` are client-only.
+The client does not run gameplay logic. It is a display and input layer.
 
-## Tooling (CLI + SDK)
+### The Scene Tree
 
-### CLI (`packages/moud-cli`)
+The scene tree is the central data structure. It's a tree of **nodes**, where each node has:
 
-- Commands: `moud create`, `moud dev`, `moud pack`.
-- Ensures a working environment:
-  - installs Java 21 under `~/.moud/jdks/` (if needed)
-  - downloads a compatible server jar under `~/.moud/servers/`
-- Bundles your project into cached artifacts:
-  - `.moud/cache/server.bundle.js`
-  - `.moud/cache/client.bundle`
-  - `.moud/cache/manifest.json`
-- In watch mode, it sends new bundles to the hot reload endpoint (`/moud/api/reload` on `port + 1000`).
+- A numeric **ID** (unique within the scene)
+- A **type** (like `Node3D`, `Camera3D`, `RigidBody3D`, `Label`)
+- A **name** (human-readable)
+- A **parent** (another node, or `0` for root-level)
+- A bag of **properties** (string key-value pairs)
 
-### SDK (`packages/sdk`)
+When your script calls `api.set("x", "10")`, that's a scene operation. The server applies it to the tree, then replicates it to all connected clients. The client sees the property change and updates the render accordingly.
 
-`packages/sdk` is an npm package used by TypeScript projects. It provides:
+## How Scripts Fit In
 
-- the TypeScript API surface for `api` and `Moud` (autocomplete and type safety)
-- a small set of runtime helpers used by scripts (example: `framebufferExportTextureId`)
+Every node can have a `script` property pointing to a `.js` or `.luau` file. When the scene loads, the server's scripting engine:
 
-## Server Runtime (`server/`)
+1. Reads and evaluates the script file
+2. Creates a script instance bound to that node
+3. Calls lifecycle hooks as the node enters the tree and each tick
 
-The server is a standalone Minestom distribution (entry point `com.moud.App`). It is not a Spigot or Bukkit plugin.
+The script receives an `api` object that lets it interact with the scene tree, physics, cameras, players, and more. See [Events](/2_Core_Concepts/2_Events) for the full lifecycle.
 
-At startup it:
+## Server-Authoritative Model
 
-- loads the project root (looks for `package.json` and `moud:main`)
-- starts the scripting runtime (GraalVM) and exposes `api` as a proxy surface
-- builds and hosts the resource pack for project assets
-- streams the client script bundle to players running the client mod
+Moud is fully server-authoritative:
 
-Networking uses `network-engine` packet definitions and transports them over plugin messaging (`moud:wrapper`).
+- All gameplay scripts execute on the server
+- Physics bodies are simulated on the server
+- The server sends the final scene state to clients
+- Clients send raw input (movement vector, look angles, jump/sprint flags)
+- The server processes that input in your scripts
 
-## Client Runtime (`client-mod/`)
+This means:
 
-The client mod runs inside Minecraft (Fabric) and mirrors the scripting model:
+- **You don't need to worry about client-side prediction** for most gameplay
+- **Players can't tamper with game state** by modifying their client
+- **All game logic is in one place** - your server scripts
+- **Network latency** is the tradeoff - design around a reliable 20 Hz server tick
 
-- it applies the server-provided resource pack, then loads the client script bundle
-- it runs client scripts in GraalVM and exposes the `Moud` global
-- it owns local-only systems like UI overlays, input, audio and voice, and rendering (Veil)
+## Data Flow Summary
 
-Client and server talk through custom packets and events. The server stays authoritative for gameplay state. The client focuses on presentation and player-side tools.
+1. Player presses W → client sends `moveZ: 1.0` to server
+2. Server delivers input to your script via `api.input()` or `_input(api, event)`
+3. Your script calls `api.setNumber("x", newX)` to move the node
+4. Server batches the property change into a scene operation
+5. Client receives the operation and updates the rendered position
 
-## Modules 
-
-- `network-engine` - packet definitions and serializers shared by server and client
-- `plugin-api` - stable Java plugin interfaces implemented by the server
-- `packages/sdk` - TypeScript API surface for scripts
-- `packages/moud-cli` - dev workflow, bundling, and launching
-
+This loop runs every server tick (~50ms at 20 Hz).

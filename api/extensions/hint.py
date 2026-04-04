@@ -12,6 +12,7 @@ class HintPreprocessor(Preprocessor):
         hint_content = []
         hint_type = 'info'
         hint_title = ''
+        hint_id = None
         counter = 0
         
         for line in lines:
@@ -19,8 +20,27 @@ class HintPreprocessor(Preprocessor):
             if hint_match:
                 in_hint_block = True
                 hint_content = []
-                hint_type = hint_match.group(1) or 'info'
-                hint_title = hint_match.group(2) or ''
+                hint_id = None
+
+                raw_type = hint_match.group(1) or 'info'
+                rest = (hint_match.group(2) or '').strip()
+
+                if raw_type and "#" in raw_type:
+                    raw_type, raw_id = raw_type.split("#", 1)
+                    hint_id = raw_id.strip()
+
+                id_match = re.search(r'(?:^|\s)id=([a-zA-Z0-9_-]+)(?:\s|$)', rest)
+                if id_match:
+                    hint_id = id_match.group(1)
+                    rest = (rest[:id_match.start()] + rest[id_match.end():]).strip()
+
+                hash_match = re.match(r'^#([a-zA-Z0-9_-]+)\s*(.*)$', rest)
+                if hash_match:
+                    hint_id = hash_match.group(1)
+                    rest = (hash_match.group(2) or '').strip()
+
+                hint_type = raw_type
+                hint_title = rest
                 continue
             elif in_hint_block and line.strip() == '```':
                 in_hint_block = False
@@ -43,10 +63,20 @@ class HintPreprocessor(Preprocessor):
                     'error': '<span class="material-symbols-rounded">error</span>',
                     'success': '<span class="material-symbols-rounded">check_circle</span>',
                     'tip': '<span class="material-symbols-rounded">lightbulb</span>',
-                    'note': '<span class="material-symbols-rounded">description</span>'
+                    'note': '<span class="material-symbols-rounded">description</span>',
+                    'danger': '<span class="material-symbols-rounded">report</span>',
+                    'important': '<span class="material-symbols-rounded">priority_high</span>',
+                    'example': '<span class="material-symbols-rounded">school</span>',
+                    'debug': '<span class="material-symbols-rounded">bug_report</span>'
                 }
+
+                type_aliases = {
+                    'warn': 'warning',
+                    'err': 'error',
+                }
+                hint_type = type_aliases.get(hint_type, hint_type)
                 
-                valid_types = ['info', 'warning', 'error', 'success', 'tip', 'note']
+                valid_types = ['info', 'warning', 'error', 'success', 'tip', 'note', 'danger', 'important', 'example', 'debug']
                 if hint_type not in valid_types:
                     invalid_type = hint_type
                     hint_type = 'info'
@@ -57,11 +87,15 @@ class HintPreprocessor(Preprocessor):
                 
                 import html
                 display_title = html.escape(display_title)
-                
-                placeholder = f'''<div class="mdoc-hint mdoc-hint-{hint_type}" id="hint-{counter}">
+
+                block_id = hint_id if hint_id else f"hint-{counter}"
+                anchor = f'<a class="hint-anchor" href="#{block_id}" title="Link to this hint"><span class="material-symbols-rounded">link</span></a>'
+
+                placeholder = f'''<div class="mdoc-hint mdoc-hint-{hint_type}" id="{block_id}">
     <div class="hint-header">
         <div class="hint-icon">{icon}</div>
         <h4 class="hint-title">{display_title}</h4>
+        {anchor}
     </div>
     <div class="hint-content">
         {processed_content}
@@ -97,10 +131,20 @@ class HintPreprocessor(Preprocessor):
                 'error': '<span class="material-symbols-rounded">error</span>',
                 'success': '<span class="material-symbols-rounded">check_circle</span>',
                 'tip': '<span class="material-symbols-rounded">lightbulb</span>',
-                'note': '<span class="material-symbols-rounded">description</span>'
+                'note': '<span class="material-symbols-rounded">description</span>',
+                'danger': '<span class="material-symbols-rounded">report</span>',
+                'important': '<span class="material-symbols-rounded">priority_high</span>',
+                'example': '<span class="material-symbols-rounded">school</span>',
+                'debug': '<span class="material-symbols-rounded">bug_report</span>'
             }
 
-            valid_types = ['info', 'warning', 'error', 'success', 'tip', 'note']
+            type_aliases = {
+                'warn': 'warning',
+                'err': 'error',
+            }
+            hint_type = type_aliases.get(hint_type, hint_type)
+
+            valid_types = ['info', 'warning', 'error', 'success', 'tip', 'note', 'danger', 'important', 'example', 'debug']
             if hint_type not in valid_types:
                 invalid_type = hint_type
                 hint_type = 'info'
@@ -111,11 +155,15 @@ class HintPreprocessor(Preprocessor):
             
             import html
             display_title = html.escape(display_title)
+
+            block_id = hint_id if hint_id else f"hint-{counter}"
+            anchor = f'<a class="hint-anchor" href="#{block_id}" title="Link to this hint"><span class="material-symbols-rounded">link</span></a>'
             
-            placeholder = f'''<div class="mdoc-hint mdoc-hint-{hint_type}" id="hint-{counter}">
+            placeholder = f'''<div class="mdoc-hint mdoc-hint-{hint_type}" id="{block_id}">
     <div class="hint-header">
         <div class="hint-icon">{icon}</div>
         <h4 class="hint-title">{display_title}</h4>
+        {anchor}
     </div>
     <div class="hint-content">
         {processed_content}

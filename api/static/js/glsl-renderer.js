@@ -87,6 +87,9 @@ function initializeGlslCanvases(placeholders) {
                 const glslCanvas = new GlslCanvas(canvas);
                 if (glslCanvas) {
                     glslCanvas.load(shaderCode);
+                    setupMouseInteraction(canvas, glslCanvas);
+                    startAnimationLoopIfNeeded(glslCanvas, shaderCode);
+                    requestRender(glslCanvas);
                 }
             } else if (simpleDisplay) {
                 // Create a simple display with minimal UI
@@ -103,6 +106,8 @@ function initializeGlslCanvases(placeholders) {
                 if (glslCanvas) {
                     glslCanvas.load(shaderCode);
                     setupMouseInteraction(canvas, glslCanvas);
+                    startAnimationLoopIfNeeded(glslCanvas, shaderCode);
+                    requestRender(glslCanvas);
                 }
             } else {
                 // Create full UI structure
@@ -214,6 +219,7 @@ function initializeGlslCanvases(placeholders) {
                     });
 
                     // Start the render loop
+                    glslCanvas.__mdocHasRenderLoop = true;
                     glslCanvas.render();
                 }
             }
@@ -232,7 +238,22 @@ function setupMouseInteraction(canvas, glslCanvas) {
     let isMouseDown = false;
     let lastX = 0, lastY = 0;
 
+    function setMouseDown(down) {
+        isMouseDown = down;
+        setUniformFloat(glslCanvas, 'u_mouseDown', down ? 1.0 : 0.0);
+        if (!glslCanvas.__mdocHasRenderLoop) {
+            requestRender(glslCanvas);
+        }
+    }
+
     function updateMouse(e) {
+        // Prevent glslCanvas internal mouse handlers (some builds overwrite `u_mouse` in pixel-space).
+        if (e && typeof e.stopImmediatePropagation === 'function') {
+            e.stopImmediatePropagation();
+        } else if (e && typeof e.stopPropagation === 'function') {
+            e.stopPropagation();
+        }
+
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = rect.height - (e.clientY - rect.top);
@@ -240,41 +261,156 @@ function setupMouseInteraction(canvas, glslCanvas) {
         const normX = Math.max(0, Math.min(1, x / rect.width));
         const normY = Math.max(0, Math.min(1, y / rect.height));
 
-        glslCanvas.setUniform('u_mouse', normX, normY);
+        const px = normX * canvas.width;
+        const py = normY * canvas.height;
+
+        // Provide both pixel-space and normalized mouse uniforms.
+        // - `u_mouse` is in canvas pixel space (matches `u_resolution`).
+        // - `u_mousePx` is an explicit alias for pixel space.
+        // - `u_mouse01` is normalized (0..1) for docs examples.
+        setUniformVec2(glslCanvas, 'u_mouse', px, py);
+        setUniformVec2(glslCanvas, 'u_mousePx', px, py);
+        setUniformVec2(glslCanvas, 'u_mouse01', normX, normY);
 
         if (isMouseDown) {
             const deltaX = (x - lastX) / rect.width;
             const deltaY = (y - lastY) / rect.height;
 
-            glslCanvas.setUniform('u_mouseDelta', deltaX, deltaY);
+            setUniformVec2(glslCanvas, 'u_mouseDelta', deltaX, deltaY);
         }
 
         lastX = x;
         lastY = y;
+
+        if (!glslCanvas.__mdocHasRenderLoop) {
+            requestRender(glslCanvas);
+        }
+    }
+
+    canvas.style.touchAction = 'none';
+
+    // We listen to both PointerEvents and MouseEvents:
+    // - glslCanvas itself listens to mouse events in some builds; we want to override uniforms after that.
+    // - PointerEvents improve touch/stylus support.
+    if (window.PointerEvent) {
+        canvas.addEventListener('pointerdown', function(e) {
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            canvas.setPointerCapture(e.pointerId);
+            updateMouse(e);
+            setMouseDown(true);
+        }, true);
+
+        canvas.addEventListener('pointerup', function(e) {
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            try {
+                canvas.releasePointerCapture(e.pointerId);
+            } catch (err) {
+                // noop
+            }
+            setMouseDown(false);
+        }, true);
+
+        canvas.addEventListener('pointermove', updateMouse, true);
+
+        canvas.addEventListener('pointerleave', function(e) {
+            if (e && typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            setMouseDown(false);
+        }, true);
     }
 
     canvas.addEventListener('mousedown', function(e) {
-        isMouseDown = true;
+        if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
         updateMouse(e);
-        glslCanvas.setUniform('u_mouseDown', 1.0);
-    });
+        setMouseDown(true);
+    }, true);
 
-    canvas.addEventListener('mouseup', function() {
-        isMouseDown = false;
-        glslCanvas.setUniform('u_mouseDown', 0.0);
-    });
+    canvas.addEventListener('mouseup', function(e) {
+        if (e && typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+        setMouseDown(false);
+    }, true);
 
-    canvas.addEventListener('mousemove', updateMouse);
+    canvas.addEventListener('mousemove', updateMouse, true);
 
-    canvas.addEventListener('mouseleave', function() {
-        glslCanvas.setUniform('u_mouseDown', 0.0);
-        isMouseDown = false;
-    });
+    canvas.addEventListener('mouseleave', function(e) {
+        if (e && typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+        setMouseDown(false);
+    }, true);
 
     // Initialize default uniform values
-    glslCanvas.setUniform('u_mouse', 0.5, 0.5);
-    glslCanvas.setUniform('u_mouseDown', 0.0);
-    glslCanvas.setUniform('u_mouseDelta', 0.0, 0.0);
+    setUniformVec2(glslCanvas, 'u_mouse', canvas.width * 0.5, canvas.height * 0.5);
+    setUniformVec2(glslCanvas, 'u_mousePx', canvas.width * 0.5, canvas.height * 0.5);
+    setUniformVec2(glslCanvas, 'u_mouse01', 0.5, 0.5);
+    setMouseDown(false);
+    setUniformVec2(glslCanvas, 'u_mouseDelta', 0.0, 0.0);
+}
+
+function requestRender(glslCanvas) {
+    if (!glslCanvas || typeof glslCanvas.render !== 'function') return;
+    if (glslCanvas.__mdocHasRenderLoop) return;
+    if (glslCanvas.__mdocRenderQueued) return;
+    glslCanvas.__mdocRenderQueued = true;
+    requestAnimationFrame(() => {
+        glslCanvas.__mdocRenderQueued = false;
+        glslCanvas.render();
+    });
+}
+
+function startAnimationLoopIfNeeded(glslCanvas, shaderCode) {
+    if (!glslCanvas) return;
+    if (glslCanvas.__mdocHasRenderLoop) return;
+    if (glslCanvas.__mdocAnimationLoopStarted) return;
+
+    const usesTime = /\bu_time\b/.test(shaderCode);
+    if (!usesTime) return;
+
+    glslCanvas.__mdocAnimationLoopStarted = true;
+    const start = performance.now();
+
+    function tick() {
+        if (glslCanvas.__mdocHasRenderLoop) return;
+        const t = (performance.now() - start) / 1000;
+        setUniformFloat(glslCanvas, 'u_time', t);
+        glslCanvas.render();
+        requestAnimationFrame(tick);
+    }
+
+    requestAnimationFrame(tick);
+}
+
+function setUniformFloat(glslCanvas, name, value) {
+    if (!glslCanvas) return;
+    if (typeof glslCanvas.setUniform === 'function') {
+        try {
+            glslCanvas.setUniform(name, value);
+            return;
+        } catch (err) {
+            // fallthrough
+        }
+    }
+    if (glslCanvas.uniforms) {
+        glslCanvas.uniforms[name] = { type: 'f', value };
+    }
+}
+
+function setUniformVec2(glslCanvas, name, x, y) {
+    if (!glslCanvas) return;
+    if (typeof glslCanvas.setUniform === 'function') {
+        try {
+            glslCanvas.setUniform(name, x, y);
+            return;
+        } catch (err) {
+            // fallthrough
+        }
+        try {
+            glslCanvas.setUniform(name, [x, y]);
+            return;
+        } catch (err) {
+            // fallthrough
+        }
+    }
+    if (glslCanvas.uniforms) {
+        glslCanvas.uniforms[name] = { type: 'vec2', value: [x, y] };
+    }
 }
 
 function setupPerformanceMonitor(infoDiv, glslCanvas) {

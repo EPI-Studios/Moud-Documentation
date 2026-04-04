@@ -1,72 +1,69 @@
 # Installing Moud
-Moud is a TypeScript-first Minecraft framework. Everything like server scripts, client rendering, UI, audio, and tooling. It runs on top of a small stack:
 
-- **Node.js** for authoring and bundling TypeScript.
-- **The Moud CLI** for scaffolding, development servers, hot reload, and packaging.
-- **The Java server** (Minestom + GraalVM) launched by the CLI.
-- **The Fabric client mod** that executes client-side scripts and rendering code.
+Welcome to Moud! Moud is a game engine that runs inside Minecraft. You build your game with scenes, scripts, materials and shaders, and Moud makes it playable on a Minecraft server with a custom Fabric client.
 
-This page walks through setting up each piece so you start your project in a minute.
+To get going, you need three things: the Moud server, the Moud client, and a project folder. The whole setup only takes a few minutes.
 
-## 1. System Requirements
+## System Requirements
 
-| Component | Requirement | Notes |
-| --- | --- | --- |
-| Node.js | v18.x or newer | Needed for the CLI/transpiler. `node -v` should report ≥ 18. |
-| npm/pnpm | latest LTS | Any package manager works; the repo uses pnpm internally. |
-| Git | optional but recommended | Every template is a Git project. |
-| Disk space | ~3 GB | CLI caches the Java runtime, server jars, and bundles under `~/.moud`. |
-| Minecraft | 1.21.1 + Fabric Loader | Required to run the client mod. |
+| Requirement | Details |
+|---|---|
+| Java | 21 (Java 25 for LUAU scripting) |
+| Minecraft | 1.21.1 with Fabric loader |
+| OS | Windows, macOS (not fully supported), or Linux |
+| RAM | ~2 GB minimum for the server, more for large scenes |
 
-`moud dev` launches a Java 21 Minestom server automatically. If Java 21 is missing, the CLI download and sandbox a compatible JDK just for Moud.
-
-```hint info Java is handled for you
-The CLI checks for JDK 21. If it is missing or incompatible, it prompts you once and installs a private copy under `~/.moud/jdks/<version>` so you never have to touch JAVA_HOME.
+```hint important Java 21 is required
+Moud uses GraalVM's JavaScript and Luau engines which require Java 25+. If you're not sure which Java you have, run `java -version` in a terminal.
 ```
 
-## 2. Install the CLI
+## Installing the Server
 
-Install the latest CLI globally (npm shown, but pnpm/yarn work too):
+The Moud server is a standalone Java application built on [Minestom](https://minestom.net/). It does not need a vanilla Minecraft server.
+
+1. Download or build `server-minestom.jar` from the Moud repository
+2. Place it in a folder of your choice
+3. Set the environment variable `MOUD_PROJECT_ROOT` to point at your game project:
 
 ```bash
-npm install -g @epi-studio/moud-cli@latest
+# Linux / macOS
+export MOUD_PROJECT_ROOT=/path/to/my-game
+
+# Windows (PowerShell)
+$env:MOUD_PROJECT_ROOT = "C:\path\to\my-game"
 ```
 
-Verify the install:
+4. Set the server mode:
 
 ```bash
-moud --version
-moud --help
+# dev mode - enables the in-game editor, file saving, and asset uploads
+export MOUD_MODE=dev
+
+# player mode - read-only runtime, no editor
+export MOUD_MODE=player
 ```
 
-If the CLI runs, the bundled dependencies (commander, esbuild, Graal bindings, etc.) are ready. All future docs assume `moud` is on your PATH.
-
-## 3. Install the Fabric Client Mod
-
-1. Install **Fabric Loader 0.15+** for Minecraft 1.21.1.
-2. Download the `client-mod` build (or build it yourself with `./gradlew :client-mod:build` inside the repo) or from the modrinth page.
-3. Drop `moud-client-mod.jar` into your `.minecraft/mods` folder alongside Fabric API.
-
-When you connect to a `moud dev` server, the Fabric mod handles:
-- Running the GraalVM client runtime.
-- Receiving scripted bundles from the server.
-- Rendering UI, models, lights, cameras, etc.
-
-## 4. Test the Environment
-
-Run the CLI once in any folder to confirm dependencies resolve:
+5. Start the server:
 
 ```bash
-moud create 
-moud dev 
+java -jar server-minestom.jar
 ```
 
-Expected behaviour:
-- The first `moud dev` invocation will create `~/.moud`, download Java 21, fetch the latest `moud-server.jar`, then keep those binaries cached.
-- Gson, GraalVM, and the Fabric dependencies are baked into the server jar, so no additional setup is required.
+The server will load your project, start the scripting engine, and begin listening for client connections.
 
-```hint tip Update cadence
-Run `npm install -g @epi-studio/moud-cli@latest` from time to time. The `VersionManager` inside the CLI warns you at runtime if a newer CLI or engine build is available.
+## Installing the Client
+
+The Moud client is a Fabric mod that replaces the default Minecraft renderer with Moud's scene renderer.
+
+1. Install [Fabric Loader](https://fabricmc.net/) for Minecraft 1.21.1
+2. Place the `client-fabric.jar` mod into your Minecraft `mods/` folder
+3. Launch Minecraft with the Fabric profile
+4. Connect to your Moud server (default: `localhost:25565`)
+
+```hint important First launch
+On first launch the client will download any assets your project needs from the server. This can take a moment for large projects.
 ```
 
-You are now ready to scaffold a project (`moud create`) and launch it with `moud dev`. The next chapters cover project structure, configuration, and day-to-day workflow.
+## Next Steps
+
+Head to [Configuration](/1_Getting_Started/2_Configuration) to learn about the project file, or jump straight to [Your First Project](/1_Getting_Started/3_First_Project) to build something.

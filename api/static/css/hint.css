@@ -15,6 +15,30 @@
     margin-bottom: 8px;
 }
 
+.hint-anchor {
+    margin-left: auto;
+    color: var(--text-muted);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    opacity: 0.0;
+    transition: opacity 0.12s ease-out, color 0.12s ease-out;
+}
+
+.mdoc-hint:hover .hint-anchor,
+.mdoc-hint:focus-within .hint-anchor {
+    opacity: 1.0;
+}
+
+.hint-anchor:hover {
+    color: var(--hint-color, var(--accent-blue));
+}
+
+.hint-anchor .material-symbols-rounded {
+    font-size: 18px;
+    font-variation-settings: 'FILL' 0, 'wght' 500;
+}
+
 .hint-icon {
     flex-shrink: 0;
     display: flex;
@@ -102,6 +126,21 @@
     --hint-bg: rgba(16, 185, 129, 0.08);
 }
 
+.mdoc-hint-important {
+    --hint-color: #a78bfa;
+    --hint-bg: rgba(167, 139, 250, 0.08);
+}
+
+.mdoc-hint-example {
+    --hint-color: #38bdf8;
+    --hint-bg: rgba(56, 189, 248, 0.08);
+}
+
+.mdoc-hint-debug {
+    --hint-color: #94a3b8;
+    --hint-bg: rgba(148, 163, 184, 0.10);
+}
+
 /* Light theme */
 .light-theme .mdoc-hint {
     --hint-bg: rgba(0, 162, 255, 0.06);
@@ -114,6 +153,9 @@
 .light-theme .mdoc-hint-error,
 .light-theme .mdoc-hint-danger { --hint-bg: rgba(239, 68, 68, 0.06); }
 .light-theme .mdoc-hint-success { --hint-bg: rgba(16, 185, 129, 0.06); }
+.light-theme .mdoc-hint-important { --hint-bg: rgba(167, 139, 250, 0.06); }
+.light-theme .mdoc-hint-example { --hint-bg: rgba(56, 189, 248, 0.06); }
+.light-theme .mdoc-hint-debug { --hint-bg: rgba(148, 163, 184, 0.08); }
 
 .light-theme .hint-content code {
     background: rgba(0, 0, 0, 0.06);

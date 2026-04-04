@@ -11,6 +11,8 @@ from api.extensions.p5js import P5jsExtension
 from api.extensions.video import VideoExtension
 from api.extensions.iframe import IframeExtension
 from api.extensions.hint import HintExtension
+from api.extensions.tabs import TabsExtension
+from api.extensions.badge import BadgeExtension
 from api.utils.cross_reference import process_cross_references
 from api.utils.table_of_contents import generate_table_of_contents, add_ids_to_headings
 from markdown.extensions.codehilite import CodeHiliteExtension
@@ -27,12 +29,39 @@ ALLOWED_ATTRIBUTES = {
     'img': ['src', 'alt', 'title', 'width', 'height'],
     **dict.fromkeys(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'ul', 'ol', 'li', 'pre', 'blockquote', 'code', 'table', 'thead', 'tbody', 'tr', 'td'], ['class', 'id']),
     'th': ['class', 'scope'],
-    'div': ['class', 'id', 'data-fragment-shader', 'data-simple-display', 'data-no-ui', 'data-width', 'data-height', 'data-graph-config', 'data-diagram', 'data-geogebra-config', 'data-sketch-code'],
+    'div': [
+        'class',
+        'id',
+        'role',
+        'data-tab-group',
+        'data-tab',
+        'aria-labelledby',
+        'aria-controls',
+        'aria-selected',
+        'data-fragment-shader',
+        'data-simple-display',
+        'data-no-ui',
+        'data-width',
+        'data-height',
+        'data-graph-config',
+        'data-diagram',
+        'data-geogebra-config',
+        'data-sketch-code',
+    ],
     'canvas': ['width', 'height', 'class', 'id'],
     'select': ['class', 'id'],
     'option': ['value', 'selected'],
     'input': ['type', 'min', 'max', 'step', 'value', 'class', 'id'],
-    'button': ['class', 'id', 'type'],
+    'button': [
+        'class',
+        'id',
+        'type',
+        'role',
+        'data-tab-group',
+        'data-tab',
+        'aria-selected',
+        'aria-controls',
+    ],
     'iframe': ['src', 'width', 'height', 'frameborder', 'allowfullscreen', 'sandbox', 'allow', 'loading'],
     'video': ['src', 'width', 'height', 'controls', 'autoplay', 'muted', 'loop', 'poster'],
     'source': ['src', 'type'],
@@ -45,6 +74,13 @@ ALLOWED_PROTOCOLS = ['http', 'https', 'mailto', 'tel', 'ftp', '#']
 MARKDOWN_EXTENSIONS = [
     TableExtension(),
     FencedCodeExtension(),
+    TabsExtension(),
+    GlslExtension(),
+    BadgeExtension(),
+    DesmosExtension(),
+    MermaidExtension(),
+    GeoGebraExtension(),
+    P5jsExtension(),
     VideoExtension(),      
     IframeExtension(),
     HintExtension(),      

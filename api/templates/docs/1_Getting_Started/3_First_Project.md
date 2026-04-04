@@ -1,80 +1,214 @@
 # Your First Project
 
-Let's go from an empty folder to a running game loop that you can join with the Fabric mod. The steps below mirror what happens inside the `example/ts` project that ships with the repository.
+In this tutorial, you will create a small Moud project from scratch. By the end you will have a floor to stand on, a spawn point, a script that logs to the console, and a collectible orb you can pick up. It should take about 10 minutes.
 
-## 1. Scaffold
+## Step 1: Create the Project File
 
-```bash
-moud create
+Make a new folder and add `project.moud.json`:
+
+```json
+{
+  "format": 1,
+  "name": "My First Game",
+  "author": "you"
+}
 ```
 
-Answer the prompts:
+## Step 2: Create Your First Scene
 
+Create `scenes/main.moud.scene`:
+
+```json
+{
+  "format": 1,
+  "sceneId": "main",
+  "displayName": "Main",
+  "nodes": [
+    {
+      "id": 1,
+      "parent": 0,
+      "name": "Spawn",
+      "type": "PlayerStart",
+      "properties": {
+        "x": "0",
+        "y": "5",
+        "z": "0"
+      }
+    },
+    {
+      "id": 2,
+      "parent": 0,
+      "name": "Floor",
+      "type": "CSGBox",
+      "properties": {
+        "x": "0",
+        "y": "-1",
+        "z": "0",
+        "sx": "50",
+        "sy": "1",
+        "sz": "50",
+        "solid": "true",
+        "collision_layer": "1",
+        "collision_mask": "1",
+        "mesh": "cube",
+        "texture": "moud:dynamic/white",
+        "color_tint_r": "0.3",
+        "color_tint_g": "0.6",
+        "color_tint_b": "0.3",
+        "opacity": "1"
+      }
+    },
+    {
+      "id": 3,
+      "parent": 0,
+      "name": "Sun",
+      "type": "DirectionalLight3D",
+      "properties": {
+        "rx": "120",
+        "ry": "45",
+        "brightness": "0.5",
+        "enabled": "true",
+        "color_r": "1",
+        "color_g": "0.95",
+        "color_b": "0.85"
+      }
+    },
+    {
+      "id": 4,
+      "parent": 0,
+      "name": "Logic",
+      "type": "Node3D",
+      "properties": {
+        "script": "scripts/hello.js"
+      }
+    }
+  ]
+}
 ```
-? What is the name of your game? my-first-game
-? Choose a project template: TypeScript (Default)
-```
 
-This generates:
+This scene has four nodes:
 
-- `src/main.ts` – server entry point preloaded with sample logic.
-- `client/` – placeholder folder for optional client scripts.
-- `assets/` – drop textures, models (`.obj/.gltf`), shaders (`.glsl`), sounds, and animation JSON.
-- `package.json`, `tsconfig.json`, `.gitignore`, and the CLI scripts discussed earlier.
+- **Spawn** - a `PlayerStart` that tells the server where to place joining players
+- **Floor** - a `CSGBox` with collision so players don't fall through the world
+- **Sun** - a `DirectionalLight3D` for basic illumination
+- **Logic** - a `Node3D` with a script attached
 
-## 2. Install Dependencies
+## Step 3: Write Your First Script
 
-Inside the new directory:
+Create `scripts/hello.js`:
 
-```bash
-cd my-first-game
-pnpm install        # or npm install / yarn
-```
+````tabs
+--- tab: JavaScript
+```js
+({
+  _ready(api) {
+    api.log("Hello from Moud!");
+  },
 
-This installs the SDK typings plus TypeScript. No runtime dependencies are required because the server bundles Graal/Minestom internally.
-
-## 3. Launch the Dev Server
-
-```bash
-npm run dev -- --watch   # alias for `moud dev --watch`
-```
-
-What happens under the hood:
-
-1. **Environment bootstrap** – downloads Java 21 and the latest `moud-server.jar` into `~/.moud` if missing.
-2. **Transpile** – runs esbuild on `src/main.ts` and any client scripts, saving them in `.moud/cache`.
-3. **Start Minestom** – launches the Java server with your project root, enables hot reload, opens port `25565`, and exposes an HTTP endpoint on `port+1000` for reload requests.
-4. **Watch** – chokidar watches `src/`, `client/`, and `assets/`. Saving a file triggers `Transpiler.transpileProject()` and hits the hot-reload endpoint; no restart needed.
-
-```hint tip Hot reload visibility
-`moud dev` prints the reload hash each time it rebuilds. If you see `Server responded with status 200`, the Graal runtime swapped your scripts without disconnecting players.
-```
-
-## 5. Edit Something
-
-Open `src/main.ts` and tweak one of the demo hooks, for example, add a simple chat event test:
-
-```ts
-api.on('player.chat', (event) => {
-  const player = event.getPlayer();
-  const message = event.getMessage().trim();
-
-  if (message === 'hello') {
-    event.cancel();
-    player.sendMessage('Welcome vro');
+  _process(api, dt) {
+    // This runs every server tick.
+    // dt is the time in seconds since the last tick.
   }
-});
+})
 ```
 
-Save the file. The CLI recompiles, sends a new bundle, and the running client updates instantly. 
+--- tab: Luau
+```lua
+local script = {}
 
+function script:_ready(api)
+    api.log("Hello from Moud!")
+end
 
-## 6. Build for Distribution
+function script:_process(api, dt)
+    -- This runs every server tick.
+    -- dt is the time in seconds since the last tick.
+end
 
-When you're ready to share a build:
+return script
+```
+````
+
+When the server loads your scene, it will print `Hello from Moud!` to the console. The `_process` callback runs every tick so you can add gameplay logic there later.
+
+## Step 4: Run It
 
 ```bash
-npm run build   # -> moud pack
+export MOUD_PROJECT_ROOT=/path/to/your-project
+export MOUD_MODE=dev
+java -jar server-minestom.jar
 ```
 
-`moud pack` runs the transpiler in production mode, copies assets, embeds the latest `moud-server.jar`, and writes a zipped folder under `dist/`. Players can unzip it and run `run.sh` / `run.bat` to host your experience without installing Node or the CLI.
+Connect with the Fabric client. You should spawn on the green floor with the sun overhead.
+
+## Step 5: Add a Trigger Zone
+
+Now let's add something interactive. We will create an `Area3D` that teleports the player when they walk into it.
+
+Add this node to the `nodes` array in `main.moud.scene`:
+
+```json
+{
+  "id": 5,
+  "parent": 0,
+  "name": "LaunchPad",
+  "type": "Area3D",
+  "properties": {
+    "x": "8",
+    "y": "0",
+    "z": "0",
+    "shape": "box",
+    "sx": "3",
+    "sy": "1",
+    "sz": "3",
+    "monitoring": "true",
+    "collision_layer": "1",
+    "collision_mask": "1",
+    "script": "scripts/launchpad.js"
+  }
+}
+```
+
+Then create `scripts/launchpad.js`:
+
+````tabs
+--- tab: JavaScript
+```js
+({
+  _enter_tree(api) {
+    this.api = api;
+    api.connect(api.id(), "area_entered", api.id(), "_on_enter");
+  },
+
+  _on_enter(playerUuid) {
+    this.api.teleportPlayer(playerUuid, 0, 20, 0);
+    this.api.log("Launched " + playerUuid + " into the sky!");
+  }
+})
+```
+
+--- tab: Luau
+```lua
+local script = {}
+
+function script:_enter_tree(api)
+    self.api = api
+    api.connect(api.id(), "area_entered", api.id(), "_on_enter")
+end
+
+function script:_on_enter(playerUuid)
+    self.api:teleportPlayer(playerUuid, 0, 20, 0)
+    self.api:log("Launched " .. playerUuid .. " into the sky!")
+end
+
+return script
+```
+````
+
+Walk onto the launch pad and you get teleported 20 blocks up. That is the core pattern for interactive gameplay in Moud: place an `Area3D`, connect its `area_entered` signal, and react in your script.
+
+## Next Steps
+
+- Read [Architecture](/2_Core_Concepts/1_Architecture) to understand how the server, client, and scripting fit together
+- Read [Scenes and Nodes](/2_Core_Concepts/3_Scenes_and_Nodes) for a deep dive into the node system
+- Browse the [Scripting API Reference](/4_Scripting/01_Script_API_Overview) for the full list of `api` methods

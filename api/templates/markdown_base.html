@@ -203,11 +203,13 @@
                 <div class="nav-label">{{ section_name }}</div>
                 <ul style="list-style: none; padding: 0; margin: 0;">
                 {% for doc in section_data.documents|sort(attribute='order') %}
+                {% if not doc.is_virtual %}
                 <li>
                     <a href="/{{ doc.filename }}" class="nav-link {% if doc.filename == doc_name %}active{% endif %}">
                         {{ doc.title }}
                     </a>
                 </li>
+                {% endif %}
                 {% endfor %}
                 </ul>
                 <div style="height: 20px;"></div> 
