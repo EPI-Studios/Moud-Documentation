@@ -1,16 +1,56 @@
 # Events and Lifecycle
 
-Scripts in Moud are event-driven. Your code does not run in a loop that you manage yourself. Instead, you define callback methods and the engine calls them at the right time.
+Scripts in Moud are event-driven. Your code does not run in a loop that you manage yourself. Instead, you define decorated methods and the engine calls them at the right time.
 
 ## Script Shape
 
-A Moud script is an object (JavaScript) or table (Luau) with named methods. The engine calls these methods automatically.
+A Moud script is a TypeScript class that extends a node type. Decorators mark which methods the engine calls automatically.
 
 ````tabs
+--- tab: TypeScript
+```ts
+import { process, ready, enterTree, exitTree, physicsProcess, input } from "moud";
+
+export default class MyNode extends Node3D {
+  // Local state - lives on this script instance
+  health = 100;
+  speed = 5;
+
+  @enterTree()
+  onEnterTree() {
+    // Called when the node is added to the scene tree
+  }
+
+  @ready()
+  onReady() {
+    // Called after @enterTree, when the node is fully initialized
+  }
+
+  @process()
+  onProcess(dt: number) {
+    // Called every frame/tick. dt = seconds since last call.
+  }
+
+  @physicsProcess()
+  onPhysicsProcess(dt: number) {
+    // Called at fixed physics timestep
+  }
+
+  @input()
+  onInput(event: string) {
+    // Called when player input is received
+  }
+
+  @exitTree()
+  onExitTree() {
+    // Called when the node is removed from the scene tree
+  }
+}
+```
+
 --- tab: JavaScript
 ```js
 ({
-  // Local state - lives on this script instance
   health: 100,
   speed: 5,
 
@@ -79,28 +119,36 @@ return script
 
 These are called automatically by the engine in this order:
 
-| Callback | When It Fires | Common Use |
-|---|---|---|
-| `_enter_tree(api)` | Node is added to the scene tree | Store `api` reference, set up signal connections |
-| `_ready(api)` | After `_enter_tree`, node is fully initialized | Initialize state, find other nodes, start timers |
-| `_process(api, dt)` | Every server tick | Visual updates, UI logic, non-physics gameplay |
-| `_physics_process(api, dt)` | Every physics step | Movement, forces, collision checks, physics-dependent logic |
-| `_input(api, event)` | When a player sends input | Custom input handling |
-| `_exit_tree(api)` | Node is being removed | Cleanup |
+| Decorator (TypeScript) | Method (JS/Luau) | When It Fires | Common Use |
+|---|---|---|---|
+| `@enterTree()` | `_enter_tree(api)` | Node is added to the scene tree | Set up signal connections |
+| `@ready()` | `_ready(api)` | After enter_tree, node is fully initialized | Initialize state, find other nodes, start timers |
+| `@process()` | `_process(api, dt)` | Every server tick | Visual updates, UI logic, non-physics gameplay |
+| `@physicsProcess()` | `_physics_process(api, dt)` | Every physics step | Movement, forces, collision checks |
+| `@input()` | `_input(api, event)` | When a player sends input | Custom input handling |
+| `@exitTree()` | `_exit_tree(api)` | Node is being removed | Cleanup |
 
-```hint important _enter_tree vs _ready
-Use `_enter_tree` when you need to set up signal connections early. Use `_ready` for everything else - by that point the full scene tree is available so you can safely call `api.find(...)` to look up other nodes.
+```hint important @enterTree vs @ready
+Use `@enterTree` when you need to set up signal connections early. Use `@ready` for everything else - by that point the full scene tree is available so you can safely call `this.find(...)` to look up other nodes.
 ```
 
 ### The `dt` Parameter
 
-Both `_process` and `_physics_process` receive a `dt` (delta time) value - the number of seconds since the last call. Always multiply movement and animation by `dt` to make them frame-rate independent:
+Both `@process` and `@physicsProcess` receive a `dt` (delta time) value - the number of seconds since the last call. Always multiply movement and animation by `dt` to make them frame-rate independent:
 
 ````tabs
+--- tab: TypeScript
+```ts
+@physicsProcess()
+onPhysicsProcess(dt: number) {
+  // Move 5 units per second regardless of tick rate
+  this.position.x += 5 * dt;
+}
+```
+
 --- tab: JavaScript
 ```js
 _physics_process(api, dt) {
-  // Move 5 units per second regardless of tick rate
   var x = api.getNumber("x", 0);
   api.setNumber("x", x + 5 * dt);
 }
@@ -117,7 +165,7 @@ end
 
 ## Signals
 
-Signals are how nodes communicate without hard-coding dependencies. A node emits a signal, and any node that connected to it gets its handler called.
+Signals are how nodes communicate without hard-coding dependencies. A node emits a signal, and any node that has connected to it gets its handler called.
 
 ### Built-in Signals
 
@@ -131,15 +179,27 @@ Signals are how nodes communicate without hard-coding dependencies. A node emits
 
 ### Connecting Signals
 
-Use `api.connect(sourceId, signal, targetId, method)` to wire a signal to a handler:
+In TypeScript, use the `@signal` decorator to declare a handler. The engine wires it automatically when the node enters the scene tree:
 
 ````tabs
+--- tab: TypeScript
+```ts
+import { signal } from "moud";
+
+export default class TrapZone extends Area3D {
+  @signal("area_entered")
+  onPlayerEnter(playerUuid: string) {
+    this.log("Player entered: " + playerUuid);
+    this.teleportPlayer(playerUuid, 0, 10, 0);
+  }
+}
+```
+
 --- tab: JavaScript
 ```js
 ({
   _enter_tree(api) {
     this.api = api;
-    // When this node's area_entered fires, call _on_player_enter on this node
     api.connect(api.id(), "area_entered", api.id(), "_on_player_enter");
   },
 
@@ -170,9 +230,41 @@ return script
 
 ### Custom Signals
 
-You can emit your own signals and connect to them from other scripts:
+Declare custom signals with `@signal` on your class, then emit them with `this.emit()`. Use `@emits` to document which signals a method fires:
 
 ````tabs
+--- tab: TypeScript
+```ts
+import { signal, emits } from "moud";
+
+// collectible.ts
+export default class Collectible extends Area3D {
+  @signal("orb_collected")
+  onDeclareSignal() {}  // declaration only - never called directly
+
+  @emits("orb_collected")
+  collect() {
+    this.emit("orb_collected");
+    this.free();
+  }
+}
+
+// score.ts
+export default class ScoreTracker extends Node {
+  private orbNode!: Node;
+
+  @ready()
+  onReady() {
+    this.orbNode = this.find("Orb");
+    this.connect(this.orbNode.id, "orb_collected", this.id, "_on_orb");
+  }
+
+  _on_orb() {
+    this.score++;
+  }
+}
+```
+
 --- tab: JavaScript
 ```js
 // In collectible.js:
@@ -194,22 +286,53 @@ api.connect(orbNodeId, "orb_collected", api.id(), "_on_orb")
 
 Signals can carry up to 3 arguments:
 
+````tabs
+--- tab: TypeScript
+```ts
+this.emit("damage_taken", 25, "fire");
+// Handler receives: onDamageTaken(amount: number, type: string)
+```
+
+--- tab: JavaScript
 ```js
 api.emit_signal("damage_taken", 25, "fire");
 // Handler receives: _on_damage_taken(amount, type)
 ```
+````
 
 ### Disconnecting Signals
 
+````tabs
+--- tab: TypeScript
+```ts
+this.disconnect(sourceId, "area_entered", targetId, "_on_player_enter");
+```
+
+--- tab: JavaScript
 ```js
 api.disconnect(sourceId, "area_entered", targetId, "_on_player_enter");
 ```
+````
 
 ## Timers
 
-Use `api.after(seconds, callback)` for delayed one-shot actions:
+Use `after()` from `moud/timers` for delayed one-shot actions:
 
 ````tabs
+--- tab: TypeScript
+```ts
+import { after } from "moud/timers";
+
+export default class Spawner extends Node {
+  @ready()
+  onReady() {
+    after(2.0, () => {
+      this.log("Two seconds have passed!");
+    });
+  }
+}
+```
+
 --- tab: JavaScript
 ```js
 _ready(api) {
@@ -231,20 +354,44 @@ end
 
 ## Tweens
 
-Use `api.tween(nodeId, property, targetValue, duration)` to smoothly animate a numeric property:
+Use `this.tween()` to smoothly animate a numeric property:
 
+````tabs
+--- tab: TypeScript
+```ts
+// Slide the node to x=10 over 0.5 seconds
+this.tween({ property: "x", to: 10, duration: 0.5 });
+```
+
+--- tab: JavaScript
 ```js
 // Slide the node to x=10 over 0.5 seconds
 api.tween(api.id(), "x", 10, 0.5);
 ```
+````
 
-Tweens run on the server and replicate to clients, so they're ideal for gameplay animations like doors opening, platforms moving, or UI transitions.
+Tweens run on the server and replicate to clients, making them ideal for doors, moving platforms, or UI transitions.
 
 ## Storing State
 
-Use `this` (JavaScript) or `self` (Luau) to keep local state on your script instance. This state is per-node and lives as long as the node exists:
+Use class fields (TypeScript) or `this`/`self` (JS/Luau) to keep local state on your script instance. This state is per-node and lives as long as the node exists:
 
 ````tabs
+--- tab: TypeScript
+```ts
+import { property } from "moud";
+
+export default class ScoreTracker extends Node {
+  @property score = 0;  // synced to scene tree, visible to other scripts
+
+  private localCache = "";  // private - not synced
+
+  _on_orb() {
+    this.score++;
+  }
+}
+```
+
 --- tab: JavaScript
 ```js
 ({
@@ -270,20 +417,4 @@ return script
 ```
 ````
 
-For data that needs to survive across scene loads or be visible to other scripts, write it to node **properties** with `api.set()` - properties are part of the scene tree and get replicated to clients.
-
-## Storing the `api` Reference
-
-The `api` object is passed to every lifecycle callback. If you need it inside signal handlers (which don't receive `api`), store it in `_enter_tree` or `_ready`:
-
-```js
-({
-  _enter_tree(api) {
-    this.api = api;  // Save for use in signal handlers
-  },
-
-  _on_pressed() {
-    this.api.log("Button was pressed!");  // Works because we stored api
-  }
-})
-```
+Fields marked with `@property` are backed by node properties in the scene tree - they get replicated to clients and are visible to other scripts. Plain class fields are local only.

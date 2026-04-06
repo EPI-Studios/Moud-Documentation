@@ -1,193 +1,390 @@
-# Input and Players API
+# Input and Players
 
-These methods let you read player input and query/control player state.
+These APIs let you read player input and query or control player state.
 
-## Raw Input
+## Reading Input in `@process`
 
-### `api.input()` → InputEvent | null
+### `this.getInput()` → `ScriptInputApi | null`
 
-Returns the current player's input state for this tick, or `null` if no input is available.
+Call `this.getInput()` inside a `@process` method to receive the current player's input state for this tick. Returns `null` if no input is available (e.g. the node has no associated player).
 
 ````tabs
---- tab: JavaScript
-```js
-_physics_process(api, dt) {
-  var inp = api.input();
-  if (!inp) return;
+--- tab: TypeScript
+```typescript
+import { Node3D, process } from "moud";
 
-  var speed = 5;
-  var x = api.getNumber("x", 0) + inp.moveX() * speed * dt;
-  var z = api.getNumber("z", 0) + inp.moveZ() * speed * dt;
-  api.setNumber("x", x);
-  api.setNumber("z", z);
+export default class PlayerController extends Node3D {
+  @process()
+  tick(dt: number) {
+    const inp = this.getInput();
+    if (!inp) return;
 
-  if (inp.jump()) {
-    api.log("Jumping!");
+    // Check a single action
+    if (inp.isActionJustPressed(InputAction.Jump)) {
+      console.log("Jump!");
+    }
   }
 }
+```
+
+--- tab: JavaScript
+```js
+({
+  _physics_process(api, dt) {
+    var inp = api.getInput();
+    if (!inp) return;
+
+    if (inp.is_action_just_pressed("jump")) {
+      api.log("Jump!");
+    }
+  }
+})
 ```
 
 --- tab: Luau
 ```lua
 function script:_physics_process(api, dt)
-    local inp = api.input()
+    local inp = api.getInput()
     if not inp then return end
 
-    local speed = 5
-    api.setNumber("x", api.getNumber("x", 0) + inp.moveX() * speed * dt)
-    api.setNumber("z", api.getNumber("z", 0) + inp.moveZ() * speed * dt)
+    if inp.is_action_just_pressed("jump") then
+        api.log("Jump!")
+    end
 end
 ```
 ````
 
-### InputEvent Methods
+## `InputAction` Enum
+
+Import `InputAction` from `moud/input` to reference built-in actions with full type safety.
+
+````tabs
+--- tab: TypeScript
+```typescript
+import { InputAction } from "moud/input";
+
+// Available actions:
+InputAction.Jump
+InputAction.Sprint
+InputAction.MoveLeft
+InputAction.MoveRight
+InputAction.MoveForward
+InputAction.MoveBack
+```
+
+--- tab: JavaScript
+```js
+// JavaScript uses string action names directly:
+inp.is_action_pressed("jump")
+inp.is_action_pressed("sprint")
+inp.get_axis("move_left", "move_right")
+```
+
+--- tab: Luau
+```lua
+-- Luau uses string action names directly:
+inp.is_action_pressed("jump")
+inp.get_axis("move_left", "move_right")
+```
+````
+
+## `ScriptInputApi` Methods
 
 | Method | Returns | Description |
 |---|---|---|
-| `playerUuid()` | string | UUID of the player |
-| `clientTick()` | long | Client-side tick number |
-| `moveX()` | float | Left-right movement axis (-1 to 1) |
-| `moveZ()` | float | Forward-back movement axis (-1 to 1) |
-| `yawDeg()` | float | Horizontal look direction in degrees |
-| `pitchDeg()` | float | Vertical look direction in degrees |
-| `jump()` | boolean | Jump key is held |
-| `sprint()` | boolean | Sprint key is held |
+| `isActionPressed(action)` | `boolean` | Action is currently held |
+| `isActionJustPressed(action)` | `boolean` | Action was pressed this tick |
+| `isActionJustReleased(action)` | `boolean` | Action was released this tick |
+| `getAxis(negative, positive)` | `number` | Combined axis value (−1 to 1) |
+| `getVector({ negX, posX, negY, posY })` | `{ x, y }` | Normalized 2D input vector |
+| `getYaw()` | `number` | Horizontal look angle in degrees |
+| `getPitch()` | `number` | Vertical look angle in degrees |
 
-## Action-Based Input
+## `@input()` Decorator - Per-Packet Input
 
-### `api.getInput()` → ScriptInputApi
-
-Returns a higher-level input API with action mapping, edge detection, and vector helpers.
+For low-latency handling where you need to react to each individual input packet (rather than once per process tick), use the `@input()` decorator.
 
 ````tabs
+--- tab: TypeScript
+```typescript
+import { Node3D, input } from "moud";
+import { InputEvent } from "moud/input";
+
+export default class InputLogger extends Node3D {
+  @input()
+  handleInput(event: InputEvent) {
+    console.log(`Player ${event.playerUuid} yaw: ${event.yawDeg}`);
+  }
+}
+```
+
 --- tab: JavaScript
 ```js
-_physics_process(api, dt) {
-  var input = api.getInput();
-
-  // Is the action currently held?
-  if (input.is_action_pressed("jump")) {
-    api.log("Holding jump");
+({
+  _input(api, event) {
+    api.log("Player: " + event.playerUuid() + " yaw: " + event.yawDeg());
   }
+})
+```
 
-  // Was it just pressed this tick?
-  if (input.is_action_just_pressed("sprint")) {
-    api.log("Started sprinting");
+--- tab: Luau
+```lua
+function script:_input(api, event)
+    api.log("Player: " .. event.playerUuid() .. " yaw: " .. event.yawDeg())
+end
+```
+````
+
+### `InputEvent` Fields (TypeScript)
+
+| Field | Type | Description |
+|---|---|---|
+| `playerUuid` | `string` | UUID of the player sending this packet |
+| `clientTick` | `number` | Client-side tick number |
+| `yawDeg` | `number` | Horizontal look direction in degrees |
+| `pitchDeg` | `number` | Vertical look direction in degrees |
+
+## Player Position
+
+Node position is available directly via `this.position` (or `this.x`, `this.y`, `this.z` on `Node3D` subclasses).
+
+````tabs
+--- tab: TypeScript
+```typescript
+import { Node3D, process } from "moud";
+
+export default class PositionTracker extends Node3D {
+  @process()
+  tick(dt: number) {
+    const { x, y, z } = this.position;
+    console.log(`Node is at ${x}, ${y}, ${z}`);
   }
-
-  // Was it just released this tick?
-  if (input.is_action_just_released("sprint")) {
-    api.log("Stopped sprinting");
-  }
-
-  // Analog strength (0 to 1)
-  var strength = input.get_action_strength("sprint");
-
-  // Look angles
-  var yaw = input.get_yaw();
-  var pitch = input.get_pitch();
-
-  // Single axis from two actions (-1 to 1)
-  var horizontal = input.get_axis("move_left", "move_right");
-
-  // 2D movement vector from four actions
-  var move = input.get_vector("move_left", "move_right", "move_forward", "move_back");
-  api.setNumber("x", api.getNumber("x", 0) + move.x * 5 * dt);
-  api.setNumber("z", api.getNumber("z", 0) + move.y * 5 * dt);
 }
+```
+
+--- tab: JavaScript
+```js
+({
+  _physics_process(api, dt) {
+    var px = api.playerX();
+    var py = api.playerY();
+    var pz = api.playerZ();
+    api.log("At: " + px + ", " + py + ", " + pz);
+  }
+})
 ```
 
 --- tab: Luau
 ```lua
 function script:_physics_process(api, dt)
-    local input = api.getInput()
+    local px = api.playerX()
+    local py = api.playerY()
+    local pz = api.playerZ()
+    api.log("At: " .. px .. ", " .. py .. ", " .. pz)
+end
+```
+````
 
-    if input.is_action_just_pressed("jump") then
+## Querying All Players
+
+### `getPlayers()` - from `moud/players`
+
+Returns an array of `PlayerInfo` objects describing every connected player.
+
+````tabs
+--- tab: TypeScript
+```typescript
+import { Node3D, ready } from "moud";
+import { getPlayers } from "moud/players";
+
+export default class Lobby extends Node3D {
+  @ready()
+  init() {
+    const players = getPlayers();
+    for (const p of players) {
+      console.log(`${p.name} is at ${p.x}, ${p.y}, ${p.z} (uuid: ${p.uuid})`);
+    }
+  }
+}
+```
+
+--- tab: JavaScript
+```js
+({
+  _ready(api) {
+    var players = api.getPlayers();
+    for (var i = 0; i < players.length; i++) {
+      var p = players[i];
+      api.log(p.name() + " at " + p.x() + ", " + p.y() + ", " + p.z());
+    }
+  }
+})
+```
+
+--- tab: Luau
+```lua
+function script:_ready(api)
+    local players = api.getPlayers()
+    for _, p in ipairs(players) do
+        api.log(p.name() .. " at " .. p.x() .. ", " .. p.y() .. ", " .. p.z())
+    end
+end
+```
+````
+
+### `PlayerInfo` Fields (TypeScript)
+
+| Field | Type | Description |
+|---|---|---|
+| `uuid` | `string` | Player UUID |
+| `name` | `string` | Display name |
+| `x`, `y`, `z` | `number` | World position |
+| `yaw` | `number` | Yaw rotation in degrees |
+
+## Teleporting Players
+
+### `teleportPlayer({ uuid, position, yaw?, pitch? })` - from `moud/players`
+
+Teleports a player to a world position. Optionally sets their look direction.
+
+````tabs
+--- tab: TypeScript
+```typescript
+import { getPlayers, teleportPlayer } from "moud/players";
+
+// Teleport to a position
+teleportPlayer({ uuid: playerUuid, position: { x: 0, y: 10, z: 0 } });
+
+// Teleport with explicit look direction
+teleportPlayer({
+  uuid: playerUuid,
+  position: { x: 0, y: 10, z: 0 },
+  yaw: 90,
+  pitch: 0,
+});
+```
+
+--- tab: JavaScript
+```js
+// Position only
+api.teleportPlayer(playerUuid, 0, 10, 0);
+
+// With yaw and pitch
+api.teleportPlayer(playerUuid, 0, 10, 0, 90, 0);
+```
+
+--- tab: Luau
+```lua
+api.teleportPlayer(playerUuid, 0, 10, 0)
+api.teleportPlayer(playerUuid, 0, 10, 0, 90, 0)
+```
+````
+
+## Complete Example: Player Controller
+
+A character controller that reads movement, handles jumping, and teleports players who fall below the world.
+
+````tabs
+--- tab: TypeScript
+```typescript
+import { Node3D, process } from "moud";
+import { InputAction } from "moud/input";
+import { getPlayers, teleportPlayer } from "moud/players";
+
+export default class PlayerController extends Node3D {
+  private speed = 8;
+  private spawnY = 64;
+
+  @process()
+  tick(dt: number) {
+    const inp = this.getInput();
+    if (!inp) return;
+
+    // 2D movement vector from four directional actions
+    const move = inp.getVector({
+      negX: InputAction.MoveLeft,
+      posX: InputAction.MoveRight,
+      negY: InputAction.MoveForward,
+      posY: InputAction.MoveBack,
+    });
+
+    // Single-axis example
+    const strafe = inp.getAxis(InputAction.MoveLeft, InputAction.MoveRight);
+
+    // Camera-relative direction
+    const yaw = inp.getYaw();
+
+    // Apply movement (simplified - no physics)
+    this.x += move.x * this.speed * dt;
+    this.z += move.y * this.speed * dt;
+
+    if (inp.isActionJustPressed(InputAction.Jump)) {
+      console.log("Player jumped!");
+    }
+
+    // Respawn players who fall off the world
+    if (this.y < -20) {
+      const players = getPlayers();
+      for (const p of players) {
+        if (p.y < -20) {
+          teleportPlayer({
+            uuid: p.uuid,
+            position: { x: 0, y: this.spawnY, z: 0 },
+            yaw: 0,
+            pitch: 0,
+          });
+        }
+      }
+    }
+  }
+}
+```
+
+--- tab: JavaScript
+```js
+({
+  speed: 8,
+
+  _physics_process(api, dt) {
+    var inp = api.getInput();
+    if (!inp) return;
+
+    var move = inp.get_vector("move_left", "move_right", "move_forward", "move_back");
+    api.setNumber("x", api.getNumber("x", 0) + move.x * this.speed * dt);
+    api.setNumber("z", api.getNumber("z", 0) + move.y * this.speed * dt);
+
+    if (inp.is_action_just_pressed("jump")) {
+      api.log("Jump!");
+    }
+
+    if (api.playerY() < -20) {
+      api.teleportPlayer(inp.playerUuid(), 0, 64, 0);
+    }
+  }
+})
+```
+
+--- tab: Luau
+```lua
+local script = { speed = 8 }
+
+function script:_physics_process(api, dt)
+    local inp = api.getInput()
+    if not inp then return end
+
+    local move = inp.get_vector("move_left", "move_right", "move_forward", "move_back")
+    api.setNumber("x", api.getNumber("x", 0) + move.x * self.speed * dt)
+    api.setNumber("z", api.getNumber("z", 0) + move.y * self.speed * dt)
+
+    if inp.is_action_just_pressed("jump") then
         api.log("Jump!")
     end
 
-    local move = input.get_vector("move_left", "move_right", "move_forward", "move_back")
-    api.setNumber("x", api.getNumber("x", 0) + move.x * 5 * dt)
-    api.setNumber("z", api.getNumber("z", 0) + move.y * 5 * dt)
+    if api.playerY() < -20 then
+        api.teleportPlayer(inp.playerUuid(), 0, 64, 0)
+    end
 end
+
+return script
 ```
 ````
-
-### ScriptInputApi Methods
-
-| Method | Returns | Description |
-|---|---|---|
-| `is_action_pressed(action)` | boolean | Action is currently held |
-| `is_action_just_pressed(action)` | boolean | Action was pressed this tick |
-| `is_action_just_released(action)` | boolean | Action was released this tick |
-| `get_action_strength(action)` | float | Analog strength (0–1) |
-| `get_yaw()` | float | Horizontal look angle |
-| `get_pitch()` | float | Vertical look angle |
-| `get_axis(negative, positive)` | float | Combined axis value (-1 to 1) |
-| `get_vector(negX, posX, negY, posY)` | Vec2 | 2D input vector (`.x`, `.y`) |
-
-## Player Queries
-
-### `api.playerX()` / `api.playerY()` / `api.playerZ()` → double
-
-Returns the current player's position.
-
-```js
-var px = api.playerX();
-var py = api.playerY();
-var pz = api.playerZ();
-```
-
-### `api.playerYaw()` → double
-
-Returns the current player's yaw rotation in degrees.
-
-### `api.getPlayers()` → PlayerInfo[]
-
-Returns an array of all connected players.
-
-````tabs
---- tab: JavaScript
-```js
-var players = api.getPlayers();
-for (var i = 0; i < players.length; i++) {
-  var p = players[i];
-  api.log(p.name() + " at " + p.x() + ", " + p.y() + ", " + p.z());
-}
-```
-
---- tab: Luau
-```lua
-local players = api.getPlayers()
-for _, p in ipairs(players) do
-    api.log(p.name() .. " at " .. p.x() .. ", " .. p.y() .. ", " .. p.z())
-end
-```
-````
-
-### PlayerInfo Methods
-
-| Method | Returns | Description |
-|---|---|---|
-| `uuid()` | string | Player UUID |
-| `name()` | string | Display name |
-| `x()`, `y()`, `z()` | double | World position |
-| `ry()` | double | Yaw rotation in degrees |
-
-## Player Control
-
-### `api.teleportPlayer(uuid, x, y, z)` → boolean
-
-Teleports a player to a position. Returns `true` on success.
-
-```js
-api.teleportPlayer(playerUuid, 0, 10, 0);
-```
-
-### `api.teleportPlayer(uuid, x, y, z, yawDeg, pitchDeg)` → boolean
-
-Teleports a player with a specific look direction.
-
-```js
-api.teleportPlayer(playerUuid, 0, 10, 0, 90, 0);
-```

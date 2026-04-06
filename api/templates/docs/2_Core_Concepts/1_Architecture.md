@@ -3,30 +3,6 @@
 Understanding how Moud is put together will help you write better games. If you know what runs where and how the pieces communicate, you will have a much easier time debugging problems and designing your gameplay.
 
 
-### The Server
-
-The server is the authority for everything in your game. Built on [Minestom](https://minestom.net/) (a lightweight Minecraft server library), it:
-
-- **Loads your project** from disk - scenes, scripts, and asset manifests
-- **Runs your scripts** using GraalVM's polyglot engine (JavaScript and Luau)
-- **Simulates physics** with a built-in physics engine (JBullet)
-- **Manages the scene tree** - all nodes, their properties, and parent-child relationships
-- **Replicates state** to connected clients by sending batched scene operations
-- **Handles player input** received from clients and feeds it to your scripts
-
-Your gameplay scripts only run on the server. This means the server is always authoritative - clients can't cheat by modifying their local state.
-
-### The Client
-
-The client is a Fabric mod for Minecraft. It:
-
-- **Receives scene operations** from the server and builds a local copy of the scene tree
-- **Renders everything** - 3D models, sprites, decals, CSG primitives, UI overlays, lights
-- **Applies materials and shaders** - custom GLSL shaders with exposed uniforms
-- **Captures player input** (movement, look direction, jumps) and sends it to the server
-- **Downloads assets** (textures, models, audio) from the server on demand
-- **Plays audio** for `AudioPlayer2D` and `AudioPlayer3D` nodes
-
 The client does not run gameplay logic. It is a display and input layer.
 
 ### The Scene Tree
@@ -43,7 +19,7 @@ When your script calls `api.set("x", "10")`, that's a scene operation. The serve
 
 ## How Scripts Fit In
 
-Every node can have a `script` property pointing to a `.js` or `.luau` file. When the scene loads, the server's scripting engine:
+Every node can have a `script` property pointing to a `.ts`, `.js`, or `.luau` file. When the scene loads, the server's scripting engine:
 
 1. Reads and evaluates the script file
 2. Creates a script instance bound to that node

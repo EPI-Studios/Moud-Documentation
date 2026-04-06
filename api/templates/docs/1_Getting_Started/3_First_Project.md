@@ -79,7 +79,7 @@ Create `scenes/main.moud.scene`:
       "name": "Logic",
       "type": "Node3D",
       "properties": {
-        "script": "scripts/hello.js"
+        "script": "scripts/hello.ts"
       }
     }
   ]
@@ -95,9 +95,27 @@ This scene has four nodes:
 
 ## Step 3: Write Your First Script
 
-Create `scripts/hello.js`:
+Create `scripts/hello.ts`:
 
 ````tabs
+--- tab: TypeScript
+```ts
+import { ready, process } from "moud";
+
+export default class Hello extends Node3D {
+  @ready()
+  onReady() {
+    this.log("Hello from Moud!");
+  }
+
+  @process()
+  onProcess(dt: number) {
+    // This runs every server tick.
+    // dt is the time in seconds since the last tick.
+  }
+}
+```
+
 --- tab: JavaScript
 ```js
 ({
@@ -129,7 +147,9 @@ return script
 ```
 ````
 
-When the server loads your scene, it will print `Hello from Moud!` to the console. The `_process` callback runs every tick so you can add gameplay logic there later.
+When the server loads your scene, it will print `Hello from Moud!` to the console. The process callback runs every tick so you can add gameplay logic there later.
+
+TypeScript scripts are transpiled automatically by the server - you don't need a build step.
 
 ## Step 4: Run It
 
@@ -164,14 +184,27 @@ Add this node to the `nodes` array in `main.moud.scene`:
     "monitoring": "true",
     "collision_layer": "1",
     "collision_mask": "1",
-    "script": "scripts/launchpad.js"
+    "script": "scripts/launchpad.ts"
   }
 }
 ```
 
-Then create `scripts/launchpad.js`:
+Then create `scripts/launchpad.ts`:
 
 ````tabs
+--- tab: TypeScript
+```ts
+import { signal } from "moud";
+
+export default class LaunchPad extends Area3D {
+  @signal("area_entered")
+  onEnter(playerUuid: string) {
+    this.teleportPlayer(playerUuid, 0, 20, 0);
+    this.log("Launched " + playerUuid + " into the sky!");
+  }
+}
+```
+
 --- tab: JavaScript
 ```js
 ({
@@ -211,4 +244,4 @@ Walk onto the launch pad and you get teleported 20 blocks up. That is the core p
 
 - Read [Architecture](/2_Core_Concepts/1_Architecture) to understand how the server, client, and scripting fit together
 - Read [Scenes and Nodes](/2_Core_Concepts/3_Scenes_and_Nodes) for a deep dive into the node system
-- Browse the [Scripting API Reference](/4_Scripting/01_Script_API_Overview) for the full list of `api` methods
+- Browse the [Scripting API Reference](/4_Scripting/01_Script_API_Overview) for the full list of available methods

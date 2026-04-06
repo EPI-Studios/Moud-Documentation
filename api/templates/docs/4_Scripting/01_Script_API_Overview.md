@@ -1,12 +1,47 @@
 # Script API Overview
 
-Every Moud script receives an `api` object. This single object is how your script talks to the game: reading and writing properties, finding nodes, controlling cameras, handling physics, reacting to input, and more.
+Moud scripts are written in TypeScript, JavaScript, or Luau and attached to nodes in the scene tree. Scripts react to lifecycle events, handle signals, and interact with the engine through a set of built-in APIs.
 
-This section documents every method on `api`. If you are looking for a specific method, the quick reference table at the bottom of this page lists them all.
+TypeScript is the recommended scripting language. It uses a class-based style with decorators and full type checking. JavaScript uses the older object literal style with an `api` parameter. Luau is also supported for those who prefer it.
+
+- `.ts` files - TypeScript class-based API (recommended)
+- `.js` files - JavaScript object literal API with `api` parameter
+- `.luau` files - Luau table-based API with `api` parameter
 
 ## Script Structure
 
 ````tabs
+--- tab: TypeScript
+```typescript
+import { Node3D } from "moud";
+
+export default class MyScript extends Node3D {
+  // Local state as class fields
+  myVar = 0;
+
+  @enterTree()
+  onEnterTree() { }
+
+  @ready()
+  onReady() { }
+
+  @process()
+  onProcess(dt: number) { }
+
+  @physicsProcess()
+  onPhysicsProcess(dt: number) { }
+
+  @input()
+  onInput(event: InputEvent) { }
+
+  @exitTree()
+  onExitTree() { }
+
+  @signal("my_signal")
+  onMySignal(arg1: string, arg2: number) { }
+}
+```
+
 --- tab: JavaScript
 ```js
 ({
@@ -43,30 +78,122 @@ return script
 ```
 ````
 
+## Lifecycle Decorators (TypeScript)
+
+| Decorator | When It Fires |
+|---|---|
+| `@enterTree()` | Node is added to the scene tree |
+| `@ready()` | Node and all children are ready |
+| `@process()` | Every frame - receives `dt` (delta time in seconds) |
+| `@physicsProcess()` | Every physics tick - receives `dt` |
+| `@input()` | When a player input event occurs - receives `InputEvent` |
+| `@exitTree()` | Node is removed from the scene tree |
+| `@signal("name")` | When the named signal fires on this node |
+
+## Base Classes
+
+TypeScript scripts extend a base class matching the node type. The base class determines which built-in properties and methods are available.
+
+```typescript
+import { Node3D, RigidBody3D, Area3D, Label, Button } from "moud";
+
+export default class MyBody extends RigidBody3D { /* ... */ }
+export default class MyZone extends Area3D { /* ... */ }
+export default class MyLabel extends Label { /* ... */ }
+```
+
+Available base classes include: `Node`, `Node3D`, `RigidBody3D`, `StaticBody3D`, `CharacterBody3D`, `Area3D`, `Camera3D`, `Label`, `Button`, `TextureButton`, `CheckBox`, `HSlider`, `VSlider`.
+
 ## API Categories
 
-| Page | What It Covers |
-|---|---|
-| [Node and Properties](/4_Scripting/02_Node_and_Properties) | `id()`, `get()`, `set()`, `find()`, `createRuntime()`, `free()` |
-| [Signals and Timers](/4_Scripting/03_Signals_and_Timers) | `connect()`, `emit_signal()`, `after()`, `tween()` |
-| [Input and Players](/4_Scripting/04_Input_and_Players) | `input()`, `getInput()`, `getPlayers()`, `teleportPlayer()` |
-| [Camera](/4_Scripting/05_Camera) | `camera().follow()`, `camera().scriptable()`, `camera().scene()` |
-| [Physics](/4_Scripting/06_Physics) | `raycast()`, `overlapSphere()`, `applyForce()`, `getCollisionEvents()` |
-| [Rendering](/4_Scripting/07_Rendering) | `setUniform()`, `setInstances()` |
-| [Scene Management](/4_Scripting/08_Scene_Management) | `loadScene()`, `instantiate()`, `flush()` |
+| Page | TypeScript API | JS `api` Object |
+|---|---|---|
+| [Node and Properties](/4_Scripting/02_Node_and_Properties) | `this.position`, `this.find()`, `this.createChild()`, `this.free()` | `api.get()`, `api.set()`, `api.find()`, `api.createRuntime()`, `api.free()` |
+| [Signals and Timers](/4_Scripting/03_Signals_and_Timers) | `@signal()`, `this.connect()`, `this.emit()`, `this.tween()` | `api.connect()`, `api.emit_signal()`, `api.after()`, `api.tween()` |
+| [Input and Players](/4_Scripting/04_Input_and_Players) | `input()` from `moud/players`, `teleportPlayer()` | `api.input()`, `api.getInput()`, `api.getPlayers()`, `api.teleportPlayer()` |
+| [Camera](/4_Scripting/05_Camera) | `camera()` from `moud/camera` | `api.camera()`, `api.setActiveCamera()` |
+| [Physics](/4_Scripting/06_Physics) | `raycast()`, `overlapSphere()` from `moud/physics` | `api.raycast()`, `api.overlapSphere()`, `api.applyForce()` |
+| [Rendering](/4_Scripting/07_Rendering) | `this.setProperty()` for uniforms, instanced renderers | `api.setUniform()`, `api.setInstances()` |
+| [Scene Management](/4_Scripting/08_Scene_Management) | `loadScene()`, `instantiate()` from `moud/scene`, `this.flush()` | `api.loadScene()`, `api.instantiate()`, `api.flush()` |
 
 ## Quick Reference
 
-Here's every method on the `api` object at a glance:
+### TypeScript Style
 
-### Identity
+Built-in properties are accessed directly on `this`. Node methods are called on `this`. Utility functions are imported from `moud` sub-modules.
+
+```typescript
+// Identity (from extended base class)
+this.name                                         // string
+// (type is the class name)
+
+// Built-in spatial properties (Node3D and subclasses)
+this.position.x / .y / .z
+this.rotation.x / .y / .z
+this.scale.x / .y / .z
+this.visible
+
+// Built-in physics properties (RigidBody3D)
+this.mass
+this.gravityScale
+this.freeze
+this.shape
+
+// Built-in UI properties (Label)
+this.text
+
+// Custom properties (synced with engine)
+@property health = 100;
+
+// Generic property access (any node)
+this.getProperty<T>(key)                          → T
+this.setProperty(key, value)                      → void
+this.removeProperty(key)                          → void
+
+// Scene tree navigation
+this.find<T>(path)                                → T
+this.getChildren()                                → Node[]
+this.exists()                                     → boolean
+
+// Node lifecycle
+this.createChild(name, type)                      → Node
+this.free()                                       → void
+this.rename(name)                                 → void
+this.reparent(parent)                             → void
+this.flush()                                      → void
+
+// Signals
+this.connect({ signal, target, handler })         → void
+this.disconnect(...)                              → void
+this.emit(signal, ...args)                        → void
+
+// Tweens
+this.tween({ property, to, duration, onComplete? }) → void
+```
+
+Utility functions are imported from sub-modules:
+
+```typescript
+import { teleportPlayer, getPlayers } from "moud/players";
+import { raycast, overlapSphere } from "moud/physics";
+import { loadScene, instantiate } from "moud/scene";
+import { camera } from "moud/camera";
+```
+
+---
+
+### JS `api` Object Style (raw reference)
+
+For scripts using the `.js` object literal format, all functionality is on the `api` parameter.
+
+#### Identity
 ```text
 api.id()                                    → long
 api.name()                                  → string
 api.type()                                  → string
 ```
 
-### Properties
+#### Properties
 ```text
 api.get(key)                                → string
 api.get(nodeId, key)                        → string
@@ -82,7 +209,7 @@ api.remove(key)                             → void
 api.remove(nodeId, key)                     → void
 ```
 
-### Scene Tree
+#### Scene Tree
 ```text
 api.find(path)                              → long
 api.getRootId()                             → long
@@ -99,9 +226,9 @@ api.loadScene(sceneId)                      → void
 api.flush()                                 → void
 ```
 
-### Signals and Timers
+#### Signals and Timers
 ```text
-api.connect(sourceId, signal, targetId, method)     → void
+api.connect(sourceId, signal, targetId, method)      → void
 api.disconnect(sourceId, signal, targetId, method)   → void
 api.emit_signal(signal)                              → void
 api.emit_signal(signal, arg1)                        → void
@@ -111,24 +238,24 @@ api.after(seconds, callback)                         → void
 api.tween(nodeId, property, target, duration)        → void
 ```
 
-### Input
+#### Input
 ```text
 api.input()                                 → InputEvent | null
 api.getInput()                              → ScriptInputApi
 ```
 
-### Players
+#### Players
 ```text
 api.playerX()                               → double
 api.playerY()                               → double
 api.playerZ()                               → double
 api.playerYaw()                             → double
 api.getPlayers()                            → PlayerInfo[]
-api.teleportPlayer(uuid, x, y, z)          → boolean
+api.teleportPlayer(uuid, x, y, z)           → boolean
 api.teleportPlayer(uuid, x, y, z, yaw, pitch) → boolean
 ```
 
-### Camera
+#### Camera
 ```text
 api.camera()                                → CameraApi
 api.camera().follow(lx, ly, lz, pitch, roll)
@@ -143,7 +270,7 @@ api.setSceneCurrentCamera(nodeId)           → void
 api.clearAllSceneCurrentCameras()           → void
 ```
 
-### Physics
+#### Physics
 ```text
 api.raycast(ox, oy, oz, dx, dy, dz, maxDist) → PhysicsHit | null
 api.overlapSphere(x, y, z, radius)           → int[]
@@ -154,13 +281,13 @@ api.applyImpulse(nodeId, fx, fy, fz)         → void
 api.setLinearVelocity(nodeId, vx, vy, vz)    → void
 ```
 
-### Rendering
+#### Rendering
 ```text
 api.setUniform(nodeId, name, ...values)       → void
 api.setInstances(nodeId, data)                → void
 ```
 
-### Utility
+#### Utility
 ```text
 api.log(message)                              → void
 ```
