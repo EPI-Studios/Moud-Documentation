@@ -1,143 +1,160 @@
-**Particles**
+# Particle3D
 
-`Particle3D` is a CPU-simulated, camera-billboarded particle emitter. Simulation and rendering run client-side; emitters are scene nodes, so their behavior is driven by properties and server scripts. Each emitter maintains a bounded pool of particles (capped by `max_particles`, hard-limited to 1,000,000 per emitter).
-
-Emitters are **distance-culled** at 96 blocks and **frustum-culled** against their `cull_radius` AABB — out-of-view emitters clear their state and stop simulating. Beyond `lod_distance`, the emitter switches to a lower-detail mode: `rate` is multiplied by `lod_rate_scale` and per-particle `size` by `lod_size_scale`.
-
-For runtime control from scripts (spawn bursts, toggle, move, override rate/lifetime), see [Particles scripting](/4_Scripting/13_Particles).
+The `Particle3D` node evaluates a CPU-simulated, camera-facing (billboarded) particle emitter. Simulation and rendering execute locally on the client, while emitter state and spatial transforms are driven by scene properties and server-side property replication.
 
 ---
 
-## Emitter
+## Technical behavior
 
-| Property | Type | Default | Description |
-|---|---|---|---|
-| `emitting` | bool | `true` | Master on/off switch. |
-| `rate` | float | `20` | Particles per second when emitting continuously. |
-| `max_particles` | int | `200` | Pool cap per emitter (hard cap: 1,000,000). |
-| `lifetime` | float | `1.5` | Base particle lifetime (seconds). |
-| `lifetime_variance` | float | `0.3` | Random ± range added to lifetime. |
-| `local_space` | bool | `false` | If `true`, existing particles translate with the emitter when it moves. |
-| `seed` | int | `0` | Deterministic seed (0 = time-based). |
-| `one_shot` | bool | `false` | If `true`, fires a single burst at start then stops. |
-| `burst_count` | int | `0` | Count used by `one_shot` and scripted bursts (0 = fall back to `rate`). |
-| `prewarm` | float | `0` | Seconds of simulation performed on spawn so the effect starts pre-populated. |
+### Memory allocation
+Each `Particle3D` node allocates a bounded instance pool dictated by the `max_particles` property. The client engine enforces a hard limit of 1,000,000 simultaneous particles per emitter.
 
----
+### Culling optimization
+To maintain render performance, the pipeline subjects active emitters to automatic spatial culling constraints:
 
-## Shape
+*   **Distance culling:** Emitters located beyond a 96-unit radius from the active camera are culled.
+*   **Frustum culling:** Emitters are evaluated against an Axis-Aligned Bounding Box (AABB) derived from their `cull_radius` property. 
 
-| Property | Type | Default | Description |
-|---|---|---|---|
-| `shape_type` | string | `point` | One of `point`, `sphere`, `box`, `disc`, `ring`, `cone`. |
-| `shape_size` | float | `0` | Uniform half-extent / radius for the shape. |
-| `shape_size_x` `shape_size_y` `shape_size_z` | float | — | Per-axis overrides for `box` / `disc` / `cone`. |
-| `surface_emit` | bool | `false` | Emit on the shape's surface instead of throughout its volume. |
-| `jitter_x` `jitter_y` `jitter_z` | float | `0` | Additional random offset applied at spawn. |
+When an emitter fails either occlusion query, the client halts its simulation loop and flushes the active particle state from memory.
+
+### Level of Detail (LOD)
+When the spatial distance between the client camera and the emitter exceeds the `lod_distance` threshold, the node evaluates under a lower-detail heuristic:
+*   The emission `rate` is multiplied by the `lod_rate_scale` factor.
+*   The per-particle `size` is multiplied by the `lod_size_scale` factor.
 
 ---
 
-## Motion
+## See Also
+
+| Topic | Link |
+|---|---|
+| Runtime manipulation (bursts, state toggling, procedural overrides) | [Particles scripting](/4_Scripting/13_Particles) |
+---
+
+## Emitter properties
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `velocity_x` `velocity_y` `velocity_z` | float | `0, 1, 0` | Base velocity vector. Its magnitude sets the initial speed. |
-| `velocity_random` | float | `0.5` | Random ± speed added on top of the base magnitude. |
-| `spread` | float | `30` | Cone half-angle in degrees (0 = colinear, 180 = omni-directional). |
-| `gravity` | float | `-2.0` | Constant acceleration on Y (world units / s²). |
+| `emitting` | bool | `true` | Determines whether the node actively spawns particles. |
+| `rate` | float | `20` | Spawn rate in particles per second. |
+| `max_particles` | int | `200` | Maximum simultaneous particles allowed for this node. |
+| `lifetime` | float | `1.5` | Base duration a particle exists before despawning (in seconds). |
+| `lifetime_variance` | float | `0.3` | Random deviation range applied to the base `lifetime`. |
+| `local_space` | bool | `false` | If `true`, existing particles inherit the emitter's spatial translation after spawning. |
+| `seed` | int | `0` | Deterministic random seed. A value of `0` uses time-based randomization. |
+| `one_shot` | bool | `false` | If `true`, emits a single burst of particles upon activation and then stops. |
+| `burst_count` | int | `0` | Quantity of particles spawned during `one_shot` mode or scripted bursts. If `0`, it defaults to the `rate` value. |
+| `prewarm` | float | `0` | Duration (in seconds) of simulation calculated instantaneously upon node initialization to pre-populate the system. |
+
+---
+
+## Shape parameters
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `shape_type` | string | `point` | Defines the emission volume boundary. Valid types: `point`, `sphere`, `box`, `disc`, `ring`, `cone`. |
+| `shape_size` | float | `0` | Uniform half-extent or radius applied to the shape boundary. |
+| `shape_size_x/y/z` | float | N/A | Explicit axis dimension overrides for `box`, `disc`, or `cone` shapes. |
+| `surface_emit` | bool | `false` | If `true`, restricts emission strictly to the outer perimeter of the defined shape volume. |
+| `jitter_x/y/z` | float | `0` | Additional spatial offset randomized and applied to each particle at spawn. |
+
+---
+
+## Motion parameters
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `velocity_x/y/z` | float | `0, 1, 0` | Base velocity vector defining initial trajectory and speed. |
+| `velocity_random` | float | `0.5` | Random deviation applied to the initial velocity magnitude. |
+| `spread` | float | `30` | Emission cone half-angle in degrees (`0` = colinear, `180` = omni-directional). |
+| `gravity` | float | `-2.0` | Constant Y-axis acceleration applied per step (units / s²). |
 | `damping` | float | `0` | Exponential velocity decay coefficient. |
-| `wind_x` `wind_y` `wind_z` | float | `0` | Constant force added each step. |
-| `turbulence_strength` | float | `0` | Curl-noise force magnitude. |
-| `turbulence_scale` | float | `1.0` | Spatial frequency of the noise. |
-| `turbulence_speed` | float | `1.0` | Temporal frequency of the noise. |
-| `inherit_velocity` | float | `0` | 0–1 fraction of the emitter's own motion velocity added to new particles. Useful for moving emitters (projectiles). |
+| `wind_x/y/z` | float | `0` | Constant directional force applied per step. |
+| `turbulence_strength` | float | `0` | Magnitude of procedural curl-noise force. |
+| `turbulence_scale` | float | `1.0` | Spatial frequency modifier for the turbulence noise field. |
+| `turbulence_speed` | float | `1.0` | Temporal frequency modifier for the turbulence noise field. |
+| `inherit_velocity` | float | `0` | Ratio (`0.0` to `1.0`) of the emitter's translation velocity applied to new particles. |
 
 ---
 
-## Collision
+## Collision constraints
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `collision` | bool | `false` | Enables collision resolution against vanilla blocks **and** the client physics world (CSGBox / CSGBlock / convex-hull geometry uploaded by the server). |
-| `bounce` | float | `0.3` | Restitution on impact (0–1). |
-| `collision_friction` | float | `0.5` | Tangential velocity damping on impact (0–1). |
+| `collision` | bool | `false` | Enables physical collision resolution against voxel geometry and convex hulls. |
+| `bounce` | float | `0.3` | Restitution multiplier applied upon impact (`0.0` to `1.0`). |
+| `collision_friction` | float | `0.5` | Tangential velocity damping multiplier applied upon impact (`0.0` to `1.0`). |
 
-Blocks use a fast axis-dominant voxel resolve. Non-block geometry is resolved via a swept sphere cast against the Jolt static world, which reflects velocity along the true surface normal — meaning particles bounce correctly off rotated CSG boxes and arbitrary mesh hulls, not just axis-aligned cubes.
+**Resolution logic:** Voxel block intersections use an axis-dominant evaluation probe. Intersections against non-block geometry use a swept-sphere cast against the Jolt static physics environment. This computes accurate reflection normals for rotated bounding boxes and arbitrary mesh surfaces. Grounded particles zero out their vertical velocity when moving slowly along the Y-axis.
 
 ---
 
-## Appearance
+## Appearance parameters
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `texture` | string | `moud:dynamic/white` | Texture / sprite sheet identifier. |
-| `size_start` `size_end` | float | `0.3`, `0` | Per-particle size at spawn / death (linear interp). |
-| `size_curve` | curve | — | Multiplier applied on top of the start→end size. Format: `t:v\|t:v\|…` with `t` in 0–1. |
-| `color_start_r` `..._g` `..._b` `..._a` | float | `1,1,1,1` | Start color (0–1 per channel). |
-| `color_end_r` `..._g` `..._b` `..._a` | float | `1,1,1,0` | End color. |
-| `alpha_curve` | curve | — | If set, overrides the start→end alpha lerp. |
-| `billboard_mode` | string | `camera` | `camera`, `velocity` (stretched along motion), `y_axis` (vertical billboard), `world`. |
-| `stretch_scale` | float | `1.0` | Length multiplier when `billboard_mode = velocity`. |
-| `unlit` | bool | `false` | If `true`, uses full-bright lightmap (ignores world light). |
-| `additive` | bool | `false` | Additive blending (fire, magic, sparks). |
-| `soft_particles` | bool | `false` | Fades alpha near solid geometry based on voxel proximity. |
-| `soft_fade_distance` | float | `0.5` | Fade begins within this many blocks of a solid. |
-| `distortion` | bool | `false` | Enables the heat-haze render path. Requires a Veil distortion shader to produce real screen-space perturbation; without one, the flag acts as an alpha modulator gated by `distortion_strength`. |
-| `distortion_strength` | float | `0.3` | Distortion intensity (0–1). |
+| `texture` | string | `moud:dynamic/white` | Target texture or sprite sheet file path. |
+| `size_start` / `size_end` | float | `0.3`, `0` | Linear particle scale interpolation between spawn and despawn. |
+| `size_curve` | curve | N/A | Non-linear scale multiplier applied over the lifetime. Formatted as `t:v|t:v` where `t` ranges from `0.0` to `1.0`. |
+| `color_start_r/g/b/a` | float | `1,1,1,1` | RGBA color matrix at spawn (channels range `0.0` to `1.0`). |
+| `color_end_r/g/b/a` | float | `1,1,1,0` | RGBA color matrix at despawn. |
+| `alpha_curve` | curve | N/A | If assigned, overrides the linear alpha interpolation between start and end colors. |
+| `billboard_mode` | string | `camera` | Mesh orientation behavior. Valid types: `camera`, `velocity` (aligns to motion vector), `y_axis` (constrained vertical rotation), `world` (no rotation). |
+| `stretch_scale` | float | `1.0` | Axis multiplier applied exclusively when `billboard_mode` is set to `velocity`. |
+| `unlit` | bool | `false` | If `true`, applies full ambient illumination, bypassing engine lighting. |
+| `additive` | bool | `false` | Implements additive blend mode for emissive visual effects. |
+| `soft_particles` | bool | `false` | Fades pixel alpha dynamically based on proximity to intersecting depth geometry. |
+| `soft_fade_distance` | float | `0.5` | Spatial depth threshold at which `soft_particles` opacity blending begins. |
+| `distortion` | bool | `false` | Enables the heat-haze render path. Requires a valid distortion shader; otherwise, it acts as an opacity modulator controlled by `distortion_strength`. |
+| `distortion_strength` | float | `0.3` | Distortion magnitude multiplier (`0.0` to `1.0`). |
 
 ---
 
-## Rotation
+## Rotation parameters
+
+Rotation constraints apply strictly to `camera`, `y_axis`, and `world` billboard modes. Rotation parameters are ignored under `velocity` mode.
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `rotation_start` | float | `0` | Base initial rotation (radians). |
-| `rotation_variance` | float | `0` | Random ± added to initial rotation. |
-| `angular_velocity` | float | `0` | Constant rotation rate (rad/s). |
-| `angular_variance` | float | `0` | Random ± added to angular velocity. |
-
-Rotation applies to `camera`, `y_axis`, and `world` billboard modes. Ignored under `velocity` (orientation is derived from the motion vector).
+| `rotation_start` | float | `0` | Base rotation assigned at spawn, measured in radians. |
+| `rotation_variance` | float | `0` | Random deviation range applied to the initial rotation. |
+| `angular_velocity` | float | `0` | Constant rotational rate applied per step (radians / second). |
+| `angular_variance` | float | `0` | Random deviation applied to the base angular velocity. |
 
 ---
 
-## Animation (flipbook)
+## Animation parameters
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `hframes` | int | `1` | Columns in the sprite sheet. |
-| `vframes` | int | `1` | Rows. |
-| `frame_count` | int | `0` | Number of frames to play (0 = `hframes × vframes`). |
-| `frame_fps` | float | `0` | If > 0, plays at a fixed FPS. Otherwise frames are distributed across the particle lifetime. |
-| `frame_start` | int | `0` | Offset into the frame sequence. |
-| `frame_random_start` | bool | `false` | Randomizes the start frame per particle. |
+| `hframes` | int | `1` | Total column divisions on the assigned sprite sheet. |
+| `vframes` | int | `1` | Total row divisions on the assigned sprite sheet. |
+| `frame_count` | int | `0` | Total frames to play. If `0`, it defaults to `hframes × vframes`. |
+| `frame_fps` | float | `0` | If > `0`, executes playback at fixed frames per second. If `0`, playback is normalized across the particle's `lifetime`. |
+| `frame_start` | int | `0` | Starting index in the frame sequence. |
+| `frame_random_start` | bool | `false` | If `true`, assigns a random starting frame index per particle. |
 
 ---
 
 ## Sub-emitters
 
-When a particle dies, it can spawn child particles at its death position. Children do **not** themselves sub-emit (no cascades). The total (live + pending) is always capped by `max_particles`.
+When a particle despawns, it can spawn a localized group of secondary particles. The total number of generated particles (parents and children) cannot exceed the node's `max_particles` limit. Sub-emitters operate as a single generation. Child particles do not spawn additional particles.
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `sub_emit_count` | int | `0` | Children spawned per dying particle. |
-| `sub_emit_lifetime` | float | `0.5` | Lifetime of children. |
-| `sub_emit_speed` | float | `1.0` | Random ± speed added to children. |
-| `sub_emit_size` | float | `0.1` | Starting size of children. |
-| `sub_emit_inherit_velocity` | bool | `true` | If `true`, children start with the dying particle's velocity. |
+| `sub_emit_count` | int | `0` | Quantity of child particles spawned per dying particle. |
+| `sub_emit_lifetime` | float | `0.5` | Lifetime duration allocated to spawned children. |
+| `sub_emit_speed` | float | `1.0` | Random deviation speed applied to spawned children. |
+| `sub_emit_size` | float | `0.1` | Base scale allocated to spawned children. |
+| `sub_emit_inherit_velocity`| bool | `true` | If `true`, child particles inherit the absolute velocity vector of the parent at the moment of despawn. |
 
 ---
 
-## Performance
+## Performance parameters
 
 | Property | Type | Default | Description |
 |---|---|---|---|
-| `lod_distance` | float | `32` | Camera distance beyond which low-detail mode kicks in. |
-| `lod_rate_scale` | float | `0.5` | Rate multiplier in low-detail mode. |
-| `lod_size_scale` | float | `1.5` | Per-particle size multiplier in low-detail mode (compensates for reduced density). |
-| `cull_radius` | float | `8` | Frustum-cull AABB half-extent around the emitter. |
-
-Runtime notes:
-
-- Emitter configuration is parsed at most every 250 ms (and instantly when the scene snapshot changes), so editing a property in the editor propagates quickly while playback avoids per-frame allocations.
-- Simulation advances at a fixed 30 Hz timestep, capped at 2 substeps per frame.
-- Collision uses a single voxel probe per step with axis-dominant resolution. Grounded particles zero-out vertical velocity at low |vy|.
+| `lod_distance` | float | `32` | Distance threshold initiating LOD multiplier scaling. |
+| `lod_rate_scale` | float | `0.5` | Multiplier applied to `rate` when beyond `lod_distance`. |
+| `lod_size_scale` | float | `1.5` | Multiplier applied to particle `size_start` and `size_end` when beyond `lod_distance`. |
+| `cull_radius` | float | `8` | Axis-aligned bounding box half-extent used for frustum culling. |
