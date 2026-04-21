@@ -1,55 +1,98 @@
 # Architecture
 
-Understanding how Moud is put together will help you write better games. If you know what runs where and how the pieces communicate, you will have a much easier time debugging problems and designing your gameplay.
+Understanding how Moud is structured will help you write better games, diagnose problems faster, and design around the engine's actual constraints rather than fighting it.
 
+Understand how Moud works will help you write better games and design around the engine's actual constraints rather than fighting it.
 
-The client does not run gameplay logic. It is a display and input layer.
+---
 
-### The Scene Tree
+## The Two Sides of Moud
 
-The scene tree is the central data structure. It's a tree of **nodes**, where each node has:
+Moud is split across two JVM processes:
 
-- A numeric **ID** (unique within the scene)
-- A **type** (like `Node3D`, `Camera3D`, `RigidBody3D`, `Label`)
-- A **name** (human-readable)
-- A **parent** (another node, or `0` for root-level)
-- A bag of **properties** (string key-value pairs)
+| Side | Technology | What it owns |
+|---|---|---|
+| **Server** | Minestom (headless Minecraft server) | Scene graph, physics, scripting, game state |
+| **Client** | Fabric mod (Minecraft client) | Rendering, input capture, editor UI, audio playback |
 
-When your script calls `api.set("x", "10")`, that's a scene operation. The server applies it to the tree, then replicates it to all connected clients. The client sees the property change and updates the render accordingly.
+These two processes communicate over the standard Minecraft plugin-message channel (`moud:engine`), shared into three logical **lanes**:
 
-## How Scripts Fit In
+- `STATE` - scene snapshots, scene operations, physics updates, runtime state
+- `EVENTS` - player input, respawn requests, UI events
+- `ASSETS` - manifest, upload, download of resource files
 
-Every node can have a `script` property pointing to a `.ts`, `.js`, or `.luau` file. When the scene loads, the server's scripting engine:
+**The client is a display and input layer only.** It has no knowledge of gameplay rules. All game logic runs on the server.
 
-1. Reads and evaluates the script file
-2. Creates a script instance bound to that node
-3. Calls lifecycle hooks as the node enters the tree and each tick
+---
 
-The script receives an `api` object that lets it interact with the scene tree, physics, cameras, players, and more. See [Events](/2_Core_Concepts/2_Events) for the full lifecycle.
+## The Minestom Server
 
-## Server-Authoritative Model
+The **20 Hz tick rate** is fixed. All gameplay scripts, physics steps, and scene operation batches happen at this cadence.
 
-Moud is fully server-authoritative:
+The server is configured entirely via environment variables:
 
-- All gameplay scripts execute on the server
-- Physics bodies are simulated on the server
-- The server sends the final scene state to clients
-- Clients send raw input (movement vector, look angles, jump/sprint flags)
-- The server processes that input in your scripts
+| Variable | Default | Meaning |
+|---|---|---|
+| `MOUD_PROJECT_ROOT` | `.` | Path to the project directory |
+| `MOUD_MODE` | `dev` | `dev` enables hot-reload, editor, uploads. `player` disables them. |
 
-This means:
+---
 
-- **You don't need to worry about client-side prediction** for most gameplay
-- **Players can't tamper with game state** by modifying their client
-- **All game logic is in one place** - your server scripts
-- **Network latency** is the tradeoff - design around a reliable 20 Hz server tick
+## The Fabric Client
 
-## Data Flow Summary
+### Key Editor Keybindings
 
-1. Player presses W → client sends `moveZ: 1.0` to server
-2. Server delivers input to your script via `api.input()` or `_input(api, event)`
-3. Your script calls `api.setNumber("x", newX)` to move the node
-4. Server batches the property change into a scene operation
-5. Client receives the operation and updates the rendered position
+| Key | Action |
+|---|---|
+| **F8** | Toggle the editor overlay |
+| **F7** | Toggle play-in-viewport mode |
+| **F9** | Toggle collision debug overlay |
 
-This loop runs every server tick (~50ms at 20 Hz).
+---
+
+## The Scene Graph
+
+The scene graph is Moud's central data structure. It is a tree of **nodes**, owned entirely by the server.
+
+Picture of the sceen tree
+
+Each node has:
+
+| Field | Type | Description |
+|---|---|---|
+| `nodeId` | `long` | Unique numeric ID within the scene, assigned by the server |
+| `name` | `String` | Human-readable label |
+| `type` | `String` | Node type name (`Node3D`, `Camera3D`, `RigidBody3D`, etc.) |
+| `parentId` | `long` | ID of the parent node; `0` means direct child of root |
+| `properties` | `Map<String,String>` | All property values as strings |
+
+```hint warning Properties Are Always Strings
+Properties are **always strings** - numbers, booleans, colors, and resource paths are all serialized to and from their string representation. `api.set("x", "10.5")` writes the string `"10.5"` to the `x` property key.
+```
+
+### Multiple Scenes
+
+`ServerScenes` manages a collection of `ServerScene` objects. Each scene has its own Minecraft `InstanceContainer`, its own `Engine`, and its own `JoltPhysicsWorld`. Players can be teleported between instances via scene transitions.
+
+The default scene is always named `"main"` and is created automatically at startup.
+
+---
+
+## Client Scripts
+
+Any node can also carry a `client_script` property - a path to a **Luau** file that runs on the Fabric client, not the server. Client scripts execute every render frame (~60 Hz) and are the correct place for any thing that should feel instant.
+
+Client scripts are written in **Luau** and receive a different API surface from server scripts:
+
+| Global | Description |
+|---|---|
+| `node` | Read-only snapshot of this node's server-authoritative properties |
+| `body` | Physics read/write - CharacterBody3D only; runs before the frame integrator |
+| `input` | Local keyboard/mouse state this exact frame |
+| `timer` | Named countdown timers |
+| `anim` | PAL animation playback and bone overrides |
+| `render` | Per-frame visual overrides (tint, visibility, shader uniforms) |
+
+```hint info Client Scripts Cannot Modify Authoritative State
+Client scripts **cannot** modify authoritative game state. They cannot spawn nodes, change server-owned properties, or send network messages. The server corrects any prediction divergence via its normal sync packets. See [Client Scripts](/4_Scripting/10_Client_Scripts) for the full reference.
+```

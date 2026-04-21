@@ -52,6 +52,22 @@ function script:_physics_process(api, dt)
     end
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class PlayerController extends NodeScript {
+    @Override public void onPhysicsProcess(double dt) {
+        var inp = core.getInput();
+        if (inp == null) return;
+
+        if (inp.is_action_just_pressed("jump")) {
+            log("Jump!");
+        }
+    }
+}
+```
 ````
 
 ## `InputAction` Enum
@@ -85,6 +101,13 @@ inp.get_axis("move_left", "move_right")
 -- Luau uses string action names directly:
 inp.is_action_pressed("jump")
 inp.get_axis("move_left", "move_right")
+```
+
+--- tab: Java
+```java
+// Java uses string action names directly:
+inp.is_action_pressed("jump");
+inp.get_axis("move_left", "move_right");
 ```
 ````
 
@@ -132,6 +155,18 @@ export default class InputLogger extends Node3D {
 function script:_input(api, event)
     api.log("Player: " .. event.playerUuid() .. " yaw: " .. event.yawDeg())
 end
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+import com.moud.server.minestom.scripting.player.InputEvent;
+
+public final class InputLogger extends NodeScript {
+    @Override public void onInput(InputEvent event) {
+        log("Player: " + event.playerUuid() + " yaw: " + event.yawDeg());
+    }
+}
 ```
 ````
 
@@ -183,6 +218,20 @@ function script:_physics_process(api, dt)
     api.log("At: " .. px .. ", " .. py .. ", " .. pz)
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class PositionTracker extends NodeScript {
+    @Override public void onPhysicsProcess(double dt) {
+        double px = core.playerX();
+        double py = core.playerY();
+        double pz = core.playerZ();
+        log("At: " + px + ", " + py + ", " + pz);
+    }
+}
+```
 ````
 
 ## Querying All Players
@@ -229,6 +278,20 @@ function script:_ready(api)
         api.log(p.name() .. " at " .. p.x() .. ", " .. p.y() .. ", " .. p.z())
     end
 end
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Lobby extends NodeScript {
+    @Override public void onReady() {
+        var list = core.getPlayers();
+        for (var p : list) {
+            log(p.name() + " at " + p.x() + ", " + p.y() + ", " + p.z());
+        }
+    }
+}
 ```
 ````
 
@@ -277,6 +340,12 @@ api.teleportPlayer(playerUuid, 0, 10, 0, 90, 0);
 ```lua
 api.teleportPlayer(playerUuid, 0, 10, 0)
 api.teleportPlayer(playerUuid, 0, 10, 0, 90, 0)
+```
+
+--- tab: Java
+```java
+core.teleportPlayer(playerUuid, 0, 10, 0);
+core.teleportPlayer(playerUuid, 0, 10, 0, 90, 0);
 ```
 ````
 
@@ -386,5 +455,31 @@ function script:_physics_process(api, dt)
 end
 
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class PlayerController extends NodeScript {
+    double speed = 8;
+
+    @Override public void onPhysicsProcess(double dt) {
+        var inp = core.getInput();
+        if (inp == null) return;
+
+        var move = inp.get_vector("move_left", "move_right", "move_forward", "move_back");
+        core.setNumber("x", core.getNumber("x", 0) + move.x * speed * dt);
+        core.setNumber("z", core.getNumber("z", 0) + move.y * speed * dt);
+
+        if (inp.is_action_just_pressed("jump")) {
+            log("Jump!");
+        }
+
+        if (core.playerY() < -20) {
+            core.teleportPlayer(inp.playerUuid(), 0, 64, 0);
+        }
+    }
+}
 ```
 ````

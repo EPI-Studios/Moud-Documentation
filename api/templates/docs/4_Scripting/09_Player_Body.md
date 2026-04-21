@@ -1,90 +1,48 @@
-# Player Body
+# Player Body and Attachments
 
-`PlayerBody` is a special node that Moud automatically creates in the scene tree for every connected player. It tracks the player's live world position and exposes attachment points at every major body part, so other nodes can follow or anchor to a specific spot on a player - their head, hands, feet, and more.
+The `PlayerAttachment` node binds descendants in the scene tree to a connected client's runtime character model. The engine evaluates the client's current animation and spatial state to drive the transform of the attached nodes. At runtime, the server maintains an underlying `PlayerBody` state for each client, exposing spatial parameters and kinematic methods to scripts.
 
-You never create a `PlayerBody` manually. One appears as a direct child of the scene root when a player joins and is removed when they leave.
+---
 
-## Anatomy of a PlayerBody
+## PlayerAttachment properties
+
+The `PlayerAttachment` node functions as structural metadata. It does not possess a physical transform; it dictates how the engine renders its children relative to a client's character model.
 
 | Property | Type | Description |
 |---|---|---|
-| `playerUuid` | `string` | UUID of the player this node represents |
-| `playerName` | `string` | Display name of the player |
-| `position` | `Vector3` | World position updated every tick by the server |
+| `target` | string | Determines the target client(s). Accepts `"all"` for global rendering, or a specific client UUID string. |
+| `attachment_point` | string | The skeletal bone or offset location to track. See **Attachment points**. |
+| `follow_rotation` | bool | If `true`, the subtree inherits the client body's yaw rotation. |
+| `follow_animation` | bool | If `true`, the subtree inherits strict bone rotation, matching limb animation offsets. |
+| `template_only` | bool | Determines instantiation behavior. See **Template instancing**. |
 
-Because `PlayerBody` inherits `Node3D`, you can attach child nodes to it just like any other 3D node.
+### Template instancing
 
-## Attachment Points
+When attaching dynamic content (such as overhead UI or health bars), node properties often need to vary per client. 
 
-When a node is a direct child of a `PlayerBody`, you can set its `attachment_point` property to pin it to a specific part of the player's model. The available points are:
+If `template_only` evaluates to `false` (default), the engine renders the identical scene tree node for all applicable clients. Modifying the child node updates it globally.
 
-| Value | Location |
-|---|---|
-| `root` | Player feet (default) |
-| `center` | Body center, approximately waist height |
-| `head` | Top of the head |
-| `above_head` | Floating above the head - good for name tags |
-| `right_hand` | Right hand / item slot |
-| `left_hand` | Left hand |
-| `right_item` | Right held item position |
-| `left_item` | Left held item position |
-| `right_foot` | Right foot |
-| `left_foot` | Left foot |
+If `template_only` evaluates to `true`, the engine treats the child subtree as a blueprint. At runtime, it instantiates an independent clone of the subtree for every connected client. Scripts must retrieve and update each cloned node individually.
 
-Limb attachment points follow full skeleton animation data so they move with animated poses in real time.
+### Attachment points
 
-In the editor inspector, when you select a node whose parent is a `PlayerBody`, a **Player Attachment** section appears with an **Attach Point** dropdown.
+The `attachment_point` property accepts the following string identifiers:
 
+| Identifier | Evaluation Location | Notes |
+|---|---|---|
+| `root` | Character origin (feet) | Ignores animation rotation. Optimal for ground-planted indicators. |
+| `center` | Character center of mass | |
+| `head` | Top of the head bounding box | |
+| `above_head` | Vertical offset above the head | Optimal for nametags and UI markers. |
+| `right_hand` / `left_hand` | Hand skeletal bones | Inherits limb animation if `follow_animation` is `true`. |
+| `right_item` / `left_item` | Held-item render slots | |
+| `right_foot` / `left_foot` | Foot skeletal bones | |
 
-## Finding Player Bodies from Scripts
+---
 
-Use `findNodesByType` to get all active player bodies in the current scene.
+## Runtime PlayerBody
 
-````tabs
---- tab: TypeScript
-```typescript
-import { Node3D, ready, process } from "moud";
-import { findNodesByType } from "moud/scene";
-import { NodeType, PlayerBody } from "moud";
-
-export default class PlayerTracker extends Node3D {
-  @ready()
-  init() {
-    const bodies = findNodesByType<PlayerBody>(NodeType.PlayerBody);
-    for (const body of bodies) {
-      console.log(`${body.playerName} is in the scene`);
-    }
-  }
-}
-```
-
---- tab: JavaScript
-```js
-({
-  _ready(api) {
-    var bodies = api.findNodesByType("PlayerBody");
-    for (var i = 0; i < bodies.length; i++) {
-      var body = bodies[i];
-      api.log(body.playerName + " is in the scene");
-    }
-  }
-})
-```
-
---- tab: Luau
-```lua
-function script:_ready(api)
-    local bodies = api.findNodesByType("PlayerBody")
-    for _, body in ipairs(bodies) do
-        api.log(body.playerName .. " is in the scene")
-    end
-end
-```
-````
-
-## Attaching a Node to a Player
-
-To attach a label above every player's head, create child nodes of the `PlayerBody` at runtime and set their `attachment_point`.
+The `PlayerBody` is a transient runtime class generated by the server for each connected client. It is not authored in the scene tree. Scripts must query the active scene to retrieve `PlayerBody` instances.
 
 ````tabs
 --- tab: TypeScript
@@ -93,14 +51,12 @@ import { Node3D, ready } from "moud";
 import { findNodesByType } from "moud/scene";
 import { NodeType, PlayerBody } from "moud";
 
-export default class NameTagSpawner extends Node3D {
+export default class PlayerTracker extends Node3D {
   @ready()
   init() {
     const bodies = findNodesByType<PlayerBody>(NodeType.PlayerBody);
     for (const body of bodies) {
-      const label = body.createChild("NameTag", "Sprite3D");
-      label.setProperty("attachment_point", "above_head");
-      label.setProperty("text", body.playerName);
+      // Execution per client body
     }
   }
 }
@@ -110,12 +66,9 @@ export default class NameTagSpawner extends Node3D {
 ```js
 ({
   _ready(api) {
-    var bodies = api.findNodesByType("PlayerBody");
-    for (var i = 0; i < bodies.length; i++) {
-      var body = bodies[i];
-      var label = body.createChild("NameTag", "Sprite3D");
-      label.setProperty("attachment_point", "above_head");
-      label.setProperty("text", body.playerName);
+    const bodies = api.findNodesByType("PlayerBody");
+    for (const body of bodies) {
+      // Execution per client body
     }
   }
 })
@@ -126,276 +79,112 @@ export default class NameTagSpawner extends Node3D {
 function script:_ready(api)
     local bodies = api.findNodesByType("PlayerBody")
     for _, body in ipairs(bodies) do
-        local label = body:createChild("NameTag", "Sprite3D")
-        label.setProperty("attachment_point", "above_head")
-        label.setProperty("text", body.playerName)
+        -- Execution per client body
     end
 end
 ```
-````
 
-## Mounting a Player to a Position
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
 
-`setAnchor(anchorNode)` teleports the player to the anchor node's world position every server tick. Use this to mount a player to a seat, a moving platform, or any other node.
-
-````tabs
---- tab: TypeScript
-```typescript
-import { Node3D, signal } from "moud";
-import { findNodesByType } from "moud/scene";
-import { NodeType, PlayerBody } from "moud";
-
-export default class Seat extends Node3D {
-  private occupant: PlayerBody | null = null;
-
-  @signal("area_entered")
-  onEnter(other: Node3D) {
-    if (this.occupant) return;
-    const bodies = findNodesByType<PlayerBody>(NodeType.PlayerBody);
-    for (const body of bodies) {
-      if (body.playerUuid === other.getProperty("player_uuid")) {
-        this.occupant = body;
-        body.setAnchor(this);
-        break;
-      }
+public final class PlayerTracker extends NodeScript {
+    @Override public void onReady() {
+        long[] bodies = core.findNodesByType("PlayerBody");
+        for (long body : bodies) {
+            // Execution per client body
+        }
     }
-  }
-
-  @signal("area_exited")
-  onExit(other: Node3D) {
-    if (this.occupant) {
-      this.occupant.clearAnchor();
-      this.occupant = null;
-    }
-  }
 }
 ```
-
---- tab: JavaScript
-```js
-({
-  occupant: null,
-
-  _on_area_entered(api, other) {
-    if (this.occupant) return;
-    var bodies = api.findNodesByType("PlayerBody");
-    for (var i = 0; i < bodies.length; i++) {
-      var body = bodies[i];
-      if (body.playerUuid === other.getProperty("player_uuid")) {
-        this.occupant = body;
-        body.setAnchor(api.self());
-        break;
-      }
-    }
-  },
-
-  _on_area_exited(api, other) {
-    if (this.occupant) {
-      this.occupant.clearAnchor();
-      this.occupant = null;
-    }
-  }
-})
-```
-
---- tab: Luau
-```lua
-local script = { occupant = nil }
-
-function script:_on_area_entered(api, other)
-    if self.occupant then return end
-    local bodies = api.findNodesByType("PlayerBody")
-    for _, body in ipairs(bodies) do
-        if body.playerUuid == other.getProperty("player_uuid") then
-            self.occupant = body
-            body.setAnchor(api.self())
-            break
-        end
-    end
-end
-
-function script:_on_area_exited(api, other)
-    if self.occupant then
-        self.occupant.clearAnchor()
-        self.occupant = nil
-    end
-end
-
-return script
-```
 ````
 
-### Notes on Mounting
+### Properties
 
-- The anchor is server-side. The server teleports the player to the anchor position each tick.
-- The player's client-side interpolation is not added on top - they simply snap to the anchor's position, which is updated every tick. For smooth mounting on a moving node, the node itself should move smoothly.
-- Call `clearAnchor()` to release the player when they should be free to move again.
+| Property | Type | Description |
+|---|---|---|
+| `playerUuid` | string | The universally unique identifier of the client. |
+| `playerName` | string | The display name of the client. |
+| `position` | Vector3 | Absolute world position, updated per server tick. |
 
-## Player Physics
+---
 
-You can apply velocity to a player directly - useful for knockback, launching, boosts, or any force-based interaction.
+## Kinematics and anchoring
 
-Velocity is in **blocks per second**, positive Y is up. These calls are sent to the player's Minecraft client which applies them physically (gravity, collision, etc. all behave normally).
+### Anchoring
 
-| Method | Description |
+`setAnchor(anchorNode)`  
+`clearAnchor()`  
+
+Binds the client to a designated node's world transform. The server overrides the client's position with the anchor's coordinates during each physics step. Utilized for vehicles, seats, and moving platforms.
+
+### Velocity
+
+`setVelocity(x, y, z)`  
+`addVelocity(x, y, z)`  
+`getVelocity()`  
+
+Applies kinematic velocity vectors to the client. Velocity is evaluated in blocks per second. These operations dispatch to the client, which processes the resultant vector against standard collision bounds and gravity.
+
+---
+
+## Client-side visual overrides
+
+Visual overrides execute strictly within client-side scripts attached to the local `CharacterBody3D`. These methods modify the local render pipeline and do not replicate to the server or other clients.
+
+### Visibility
+
+`setVisible(state)`  
+`setPartVisible(part, state)`  
+`isVisible()`  
+`isPartVisible(part)`  
+
+Toggles rendering for the entire character model or isolated skeletal parts. Useful for first-person perspective culling or invisibility states.
+
+```lua
+body.setVisible(false)                  -- Culls the entire model
+body.setPartVisible("right_arm", false) -- Culls the right arm
+```
+
+### Scale
+
+`setScale(x, y, z)`  
+`clearScale()`  
+`setPartScale(part, scale)`  
+`clearPartScale(part)`  
+
+Multiplies the transform matrix of the character model or specific skeletal parts. Global scale applies uniformly; per-part scale multiplies additively against base animation transforms.
+
+```lua
+body.setScale(1.0, 1.5, 1.0)            -- Stretches the model along the Y-axis
+body.setPartScale("head", 2.0)          -- Multiplies head rendering scale by 2
+```
+
+### Skeletal part identifiers
+
+Visibility and scaling methods accept the following case-insensitive strings:
+
+| Identifier | Target geometry |
 |---|---|
-| `setVelocity(vx, vy, vz)` | Overrides current velocity completely |
-| `addVelocity(vx, vy, vz)` | Adds to current velocity (impulse) |
-| `getVelocity()` | Returns `{ x, y, z }` in blocks per second |
+| `head` | Base head cube |
+| `hat` | Secondary head overlay layer |
+| `body` | Base torso cube |
+| `right_arm` / `left_arm` | Base arm cubes |
+| `right_leg` / `left_leg` | Base leg cubes |
+| `jacket` | Secondary torso overlay layer |
+| `right_sleeve` / `left_sleeve` | Secondary arm overlay layers |
+| `right_pants` / `left_pants` | Secondary leg overlay layers |
+| `cloak` | Cape geometry |
 
-````tabs
---- tab: TypeScript
-```typescript
-import { Node3D, signal } from "moud";
-import { findNodesByType } from "moud/scene";
-import { NodeType, PlayerBody } from "moud";
+*Note: Overlay layers (e.g., `hat`, `jacket`) are parallel nodes to the base geometry, not children. Hiding `head` does not automatically hide `hat`.*
 
-export default class LaunchPad extends Node3D {
-  @signal("area_entered")
-  onEnter(other: Node3D) {
-    const bodies = findNodesByType<PlayerBody>(NodeType.PlayerBody);
-    for (const body of bodies) {
-      if (body.playerUuid === other.getProperty<string>("player_uuid")) {
-        // Launch upward at 15 blocks/sec, keep horizontal velocity
-        const vel = body.getVelocity();
-        body.setVelocity(vel.x, 15, vel.z);
-        break;
-      }
-    }
-  }
-}
-```
+---
 
---- tab: JavaScript
-```js
-({
-  _on_area_entered(api, other) {
-    var bodies = api.findNodesByType("PlayerBody");
-    for (var i = 0; i < bodies.length; i++) {
-      var body = bodies[i];
-      if (body.playerUuid === other.getProperty("player_uuid")) {
-        var vel = body.getVelocity();
-        body.setVelocity(vel.x, 15, vel.z);
-        break;
-      }
-    }
-  }
-})
-```
+## Look targets (Head bone)
 
---- tab: Luau
-```lua
-function script:_on_area_entered(api, other)
-    local bodies = api.findNodesByType("PlayerBody")
-    for _, body in ipairs(bodies) do
-        if body.playerUuid == other.getProperty("player_uuid") then
-            local vel = body.getVelocity()
-            body.setVelocity(vel.x, 15, vel.z)
-            break
-        end
-    end
-end
-```
-````
+`setHeadLookAt(x, y, z)`  
+`clearHeadLookAt()`  
 
-### Knockback Example
+Applies a procedural rotational constraint strictly to the `head` bone, pointing it toward an absolute world coordinate. 
 
-```typescript
-// Push all players away from an explosion origin
-const origin = this.position;
-const bodies = findNodesByType<PlayerBody>(NodeType.PlayerBody);
-for (const body of bodies) {
-  const dx = body.position.x - origin.x;
-  const dz = body.position.z - origin.z;
-  const dist = Math.sqrt(dx * dx + dz * dz) || 1;
-  const strength = Math.max(0, 12 - dist); // weaker at range
-  body.addVelocity((dx / dist) * strength, 6, (dz / dist) * strength);
-}
-```
-
-## Complete Example: Floating Crown
-
-Attach a spinning crown above a specific player's head.
-
-````tabs
---- tab: TypeScript
-```typescript
-import { Node3D, ready, process } from "moud";
-import { findNodesByType } from "moud/scene";
-import { NodeType, PlayerBody } from "moud";
-
-export default class CrownManager extends Node3D {
-  private crown: Node3D | null = null;
-  private rotation = 0;
-
-  @ready()
-  init() {
-    // Attach a crown to the first player found
-    const bodies = findNodesByType<PlayerBody>(NodeType.PlayerBody);
-    if (bodies.length === 0) return;
-
-    const body = bodies[0];
-    const crown = body.createChild<Node3D>("Crown", "MeshInstance3D");
-    crown.setProperty("attachment_point", "above_head");
-    crown.setProperty("mesh", "res://meshes/crown.glb");
-    this.crown = crown;
-  }
-
-  @process()
-  tick(dt: number) {
-    if (!this.crown) return;
-    this.rotation = (this.rotation + 90 * dt) % 360;
-    this.crown.setProperty("ry", String(this.rotation));
-  }
-}
-```
-
---- tab: JavaScript
-```js
-({
-  crown: null,
-  rotation: 0,
-
-  _ready(api) {
-    var bodies = api.findNodesByType("PlayerBody");
-    if (bodies.length === 0) return;
-
-    var body = bodies[0];
-    var crown = body.createChild("Crown", "MeshInstance3D");
-    crown.setProperty("attachment_point", "above_head");
-    crown.setProperty("mesh", "res://meshes/crown.glb");
-    this.crown = crown;
-  },
-
-  _process(api, dt) {
-    if (!this.crown) return;
-    this.rotation = (this.rotation + 90 * dt) % 360;
-    this.crown.setProperty("ry", String(this.rotation));
-  }
-})
-```
-
---- tab: Luau
-```lua
-local script = { crown = nil, rotation = 0 }
-
-function script:_ready(api)
-    local bodies = api.findNodesByType("PlayerBody")
-    if #bodies == 0 then return end
-
-    local body = bodies[1]
-    local crown = body:createChild("Crown", "MeshInstance3D")
-    crown.setProperty("attachment_point", "above_head")
-    crown.setProperty("mesh", "res://meshes/crown.glb")
-    self.crown = crown
-end
-
-function script:_process(api, dt)
-    if not self.crown then return end
-    self.rotation = (self.rotation + 90 * dt) % 360
-    self.crown.setProperty("ry", tostring(self.rotation))
-end
-
-return script
-```
-````
+Unlike the viewport-level constraints detailed in [Camera](/4_Scripting/05_Camera), this operation does not affect the client's primary camera or body yaw. It is purely an aesthetic skeletal override.

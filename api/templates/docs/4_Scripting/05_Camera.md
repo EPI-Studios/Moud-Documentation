@@ -1,10 +1,12 @@
 # Camera
 
-Control the player's camera from scripts. Cameras in Moud are `Camera3D` nodes - extend the `Camera3D` base class to attach scripted camera behavior to a node in the scene tree.
+The `Camera3D` node determines how the client views the 3D world. By extending the `Camera3D` base class within a script, developers can evaluate and modify the camera's behavioral mode, position, and orientation dynamically. 
 
-## Camera3D Node
+---
 
-To write a scripted camera, export a class that extends `Camera3D`. The camera methods (`follow`, `scriptable`, `scene`, `reset`) are available directly on `this`.
+## Initialization
+
+Scripts extending `Camera3D` gain direct access to camera behavioral methods (`follow`, `scriptable`, `scene`, `reset`) through the `this` context (or via the `api.camera()` object in JavaScript and Luau).
 
 ````tabs
 --- tab: TypeScript
@@ -14,7 +16,6 @@ import { Camera3D, ready } from "moud";
 export default class MyCamera extends Camera3D {
   @ready()
   init() {
-    // Set the camera mode here
     this.follow({ offset: { x: 0, y: 5, z: -10 }, pitch: -15, roll: 0 });
   }
 }
@@ -22,7 +23,6 @@ export default class MyCamera extends Camera3D {
 
 --- tab: JavaScript
 ```js
-// JavaScript accesses camera via api.camera()
 ({
   _ready(api) {
     api.camera().follow(0, 5, -10, -15, 0);
@@ -38,44 +38,59 @@ function script:_ready(api)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class MyCamera extends NodeScript {
+    @Override public void onReady() {
+        camera.follow(0, 5, -10, -15, 0);
+    }
+}
+```
 ````
 
-## Camera Modes
+---
 
-### `this.follow({ offset, pitch, roll })` - Follow Camera
+## Behavioral modes
 
-Attaches the camera to the player at a fixed local offset. The camera rotates with the player's yaw, keeping the offset relative to their facing direction.
+### Follow mode
+
+`this.follow({ offset, pitch, roll })`
+
+Attaches the camera to the client's player entity at a fixed local offset. The camera inherits the player's yaw rotation, maintaining the offset relative to the character's facing direction.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `offset.x` | `number` | Horizontal offset (positive = right) |
-| `offset.y` | `number` | Vertical offset (positive = up) |
-| `offset.z` | `number` | Depth offset (negative = behind the player) |
-| `pitch` | `number` | Camera pitch in degrees (negative = look down) |
-| `roll` | `number` | Camera roll in degrees |
+| `offset.x` | `number` | Horizontal transform offset (`+` = right). |
+| `offset.y` | `number` | Vertical transform offset (`+` = up). |
+| `offset.z` | `number` | Depth transform offset (`-` = behind). |
+| `pitch` | `number` | Camera pitch evaluation in degrees (`-` = downward angle). |
+| `roll` | `number` | Camera roll evaluation in degrees. |
 
 ````tabs
 --- tab: TypeScript
 ```typescript
-// Third-person over-the-shoulder
+// Third-person offset
 this.follow({ offset: { x: 0.75, y: 2.4, z: -5.5 }, pitch: -12, roll: 0 });
 
-// Top-down view
+// Top-down offset
 this.follow({ offset: { x: 0, y: 15, z: 0 }, pitch: -90, roll: 0 });
 
-// Side-scroller style
+// Orthogonal side-scrolling offset
 this.follow({ offset: { x: 0, y: 2, z: -8 }, pitch: 0, roll: 0 });
 ```
 
 --- tab: JavaScript
 ```js
-// Third-person over-the-shoulder
+// Third-person offset
 api.camera().follow(0.75, 2.4, -5.5, -12, 0);
 
-// Top-down
+// Top-down offset
 api.camera().follow(0, 15, 0, -90, 0);
 
-// Side-scroller
+// Orthogonal side-scrolling offset
 api.camera().follow(0, 2, -8, 0, 0);
 ```
 
@@ -85,23 +100,32 @@ api.camera().follow(0.75, 2.4, -5.5, -12, 0)
 api.camera().follow(0, 15, 0, -90, 0)
 api.camera().follow(0, 2, -8, 0, 0)
 ```
+
+--- tab: Java
+```java
+camera.follow(0.75, 2.4, -5.5, -12, 0);
+camera.follow(0, 15, 0, -90, 0);
+camera.follow(0, 2, -8, 0, 0);
+```
 ````
 
-### `this.scriptable({ position, yaw, pitch, roll })` - Scripted Position
+### Scriptable mode
 
-Places the camera at an absolute world position with an explicit orientation. Use this for cinematic shots, fixed angles, or cameras you move each frame via `@process`.
+`this.scriptable({ position, yaw, pitch, roll })`
+
+Assigns the camera to an absolute world coordinate and explicit orientation. This mode is utilized for fixed viewing angles or procedural camera transformations evaluated per frame via the `@process` execution step.
 
 | Parameter | Type | Description |
 |---|---|---|
-| `position.x/y/z` | `number` | World-space position |
-| `yaw` | `number` | Horizontal look direction in degrees |
-| `pitch` | `number` | Vertical look direction in degrees |
-| `roll` | `number` | Camera roll in degrees |
+| `position.x/y/z` | `number` | Absolute world-space coordinate. |
+| `yaw` | `number` | Horizontal look direction in degrees. |
+| `pitch` | `number` | Vertical look direction in degrees. |
+| `roll` | `number` | Camera roll in degrees. |
 
 ````tabs
 --- tab: TypeScript
 ```typescript
-// Fixed overhead shot
+// Fixed perspective initialization
 this.scriptable({
   position: { x: 0, y: 20, z: 0 },
   yaw: 0,
@@ -109,7 +133,7 @@ this.scriptable({
   roll: 0,
 });
 
-// Cinematic orbit (update every frame)
+// Procedural orbital transformation
 import { Camera3D, process } from "moud";
 
 export default class OrbitCamera extends Camera3D {
@@ -120,6 +144,7 @@ export default class OrbitCamera extends Camera3D {
     this.time += dt;
     const angle = this.time * 0.5;
     const radius = 10;
+    
     this.scriptable({
       position: {
         x: Math.cos(angle) * radius,
@@ -167,21 +192,40 @@ function script:_process(api, dt)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class OrbitCamera extends NodeScript {
+    double time = 0;
+
+    @Override public void onProcess(double dt) {
+        time += dt;
+        double angle = time * 0.5;
+        double x = Math.cos(angle) * 10;
+        double z = Math.sin(angle) * 10;
+        double yaw = angle * 180 / Math.PI + 90;
+        camera.scriptable(x, 7, z, yaw, -15, 0);
+    }
+}
+```
 ````
 
-### `this.scene()` - Use This Node as the Active Camera
+### Scene mode
 
-Activates this `Camera3D` node as the scene camera for the player. Useful when you want the camera to be positioned and animated via the scene tree rather than code.
+`this.scene()`
+
+Designates the executing `Camera3D` node as the active client viewport. The renderer inherits the node's current transform matrix directly from the scene graph.
 
 ````tabs
 --- tab: TypeScript
 ```typescript
 import { Camera3D, ready } from "moud";
 
-export default class CutsceneCamera extends Camera3D {
+export default class SceneCamera extends Camera3D {
   @ready()
   init() {
-    // This node is now the active camera
     this.scene();
   }
 }
@@ -191,7 +235,7 @@ export default class CutsceneCamera extends Camera3D {
 ```js
 ({
   _ready(api) {
-    var cam = api.find("CutsceneCamera");
+    var cam = api.find("SceneCamera");
     api.camera().scene(cam);
   }
 })
@@ -200,15 +244,29 @@ export default class CutsceneCamera extends Camera3D {
 --- tab: Luau
 ```lua
 function script:_ready(api)
-    local cam = api.find("CutsceneCamera")
+    local cam = api.find("SceneCamera")
     api.camera().scene(cam)
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class SceneCamera extends NodeScript {
+    @Override public void onReady() {
+        long cam = core.find("SceneCamera");
+        camera.scene(cam);
+    }
+}
+```
 ````
 
-### `this.reset()` - Revert to Default Player Camera
+### Reset
 
-Returns the camera to the engine's default first-person player perspective.
+`this.reset()`
+
+Reverts the client viewport to the engine's default first-person perspective, detaching it from any prior scripted camera state.
 
 ````tabs
 --- tab: TypeScript
@@ -216,11 +274,10 @@ Returns the camera to the engine's default first-person player perspective.
 import { Camera3D, ready } from "moud";
 import { after } from "moud/timers";
 
-export default class CutsceneCamera extends Camera3D {
+export default class TempCamera extends Camera3D {
   @ready()
   init() {
     this.scene();
-    // Return to player camera after 5 seconds
     after(5.0, () => this.reset());
   }
 }
@@ -230,7 +287,7 @@ export default class CutsceneCamera extends Camera3D {
 ```js
 ({
   _ready(api) {
-    api.camera().scene(api.find("CutsceneCamera"));
+    api.camera().scene(api.find("TempCamera"));
     api.after(5.0, function() {
       api.camera().reset();
     });
@@ -241,17 +298,31 @@ export default class CutsceneCamera extends Camera3D {
 --- tab: Luau
 ```lua
 function script:_ready(api)
-    api.camera().scene(api.find("CutsceneCamera"))
+    api.camera().scene(api.find("TempCamera"))
     api.after(5.0, function()
         api.camera().reset()
     end)
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class TempCamera extends NodeScript {
+    @Override public void onReady() {
+        camera.scene(core.find("TempCamera"));
+        core.after(5.0, () -> camera.reset());
+    }
+}
+```
 ````
 
-## Animating Camera Properties with `this.tween`
+---
 
-Camera properties (position, rotation) can be animated using `this.tween` the same way as any node. This is useful for smooth transitions between camera states.
+## Property interpolation
+
+Camera transform properties (position, rotation) support linear interpolation via the `tween` method, enabling continuous transitions between states over a defined duration.
 
 ````tabs
 --- tab: TypeScript
@@ -262,9 +333,8 @@ export default class SweepCamera extends Camera3D {
   @ready()
   init() {
     this.scene();
-    // Sweep the camera from y=5 to y=20 over 2 seconds
     this.tween({ property: "y", to: 20, duration: 2.0 });
-    // Then tilt it down
+    
     this.tween({
       property: "pitch",
       to: -60,
@@ -294,92 +364,68 @@ function script:_ready(api)
     api.tween(cam, "y", 20, 2.0)
 end
 ```
-````
 
-## Complete Example: Camera Controller
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
 
-A camera controller that switches between a follow camera during gameplay and a scripted cinematic position, triggered by a signal.
-
-````tabs
---- tab: TypeScript
-```typescript
-import { Camera3D, ready, signal } from "moud";
-import { after } from "moud/timers";
-
-export default class GameCamera extends Camera3D {
-  @ready()
-  init() {
-    // Start in third-person follow mode
-    this.follow({ offset: { x: 0, y: 3, z: -7 }, pitch: -10, roll: 0 });
-  }
-
-  // Listen for a "cutscene_start" signal from a trigger area
-  @signal("cutscene_start")
-  startCutscene() {
-    // Move to a fixed cinematic position
-    this.scriptable({
-      position: { x: 10, y: 15, z: -5 },
-      yaw: 200,
-      pitch: -25,
-      roll: 0,
-    });
-
-    // Animate the camera downward for dramatic effect
-    this.tween({ property: "y", to: 8, duration: 3.0 });
-
-    // Return to follow camera after the cutscene
-    after(5.0, () => {
-      this.follow({ offset: { x: 0, y: 3, z: -7 }, pitch: -10, roll: 0 });
-    });
-  }
-
-  // A trigger node can call reset() to bail out early
-  @signal("cutscene_skip")
-  skip() {
-    this.reset();
-  }
+public final class SweepCamera extends NodeScript {
+    @Override public void onReady() {
+        long cam = core.find("SweepCamera");
+        camera.scene(cam);
+        core.tween(cam, "y", 20, 2.0);
+    }
 }
 ```
-
---- tab: JavaScript
-```js
-({
-  _ready(api) {
-    this.api = api;
-    api.camera().follow(0, 3, -7, -10, 0);
-    api.connect(triggerId, "cutscene_start", api.id(), "_on_cutscene");
-  },
-
-  _on_cutscene() {
-    var a = this.api;
-    a.camera().scriptable(10, 15, -5, 200, -25, 0);
-    a.tween(a.id(), "y", 8, 3.0);
-    a.after(5.0, function() {
-      a.camera().follow(0, 3, -7, -10, 0);
-    });
-  }
-})
-```
-
---- tab: Luau
-```lua
-local script = {}
-
-function script:_ready(api)
-    self.api = api
-    api.camera().follow(0, 3, -7, -10, 0)
-    api.connect(triggerId, "cutscene_start", api.id(), "_on_cutscene")
-end
-
-function script:_on_cutscene()
-    local a = self.api
-    a.camera().scriptable(10, 15, -5, 200, -25, 0)
-    a.tween(a.id(), "y", 8, 3.0)
-    a.after(5.0, function()
-        a.camera().follow(0, 3, -7, -10, 0)
-    end)
-end
-
-return script
-```
 ````
+
+---
+
+## Look targets
+
+The camera system supports target acquisition methods that override or blend with standard client input. These methods constrain the viewport's look vectors toward a designated world coordinate.
+
+```hint info Client-side evaluation
+Target acquisition algorithms process entirely on the local client, bypassing server round-trip latency to ensure immediate visual response.
+```
+
+### Soft target
+
+`camera.setLookTarget(x, y, z, strength, maxAngleDeg)`
+
+Applies a rotational pull toward the designated coordinate. Client hardware input is compounded with this pull, permitting the user to deviate from the target axis. When hardware input ceases, the camera interpolates back to the center of the target constraint.
+
+| Parameter | Description |
+|---|---|
+| `x, y, z` | The absolute world coordinate to track. |
+| `strength` | Speed multiplier for target re-centering (`0` = none, `1.0` ≈ 0.5s interpolation). |
+| `maxAngleDeg` | *(Optional)* The maximum allowable yaw/pitch deviation clamp in degrees. A value of `0` disables clamping. |
+
+```lua
+-- Standard coordinate tracking without clamp
+camera:setLookTarget(targetX, targetY, targetZ, 3.0, 0)
+
+-- Strict pull with a 40-degree maximum deviation cone
+camera:setLookTarget(targetX, targetY, targetZ, 8.0, 40)
+```
+
+### Hard target
+
+`camera.setLookTargetHard(x, y, z)`
+
+Forces the viewport to directly face the target coordinate, entirely discarding client rotational input. This is utilized for strict sequence overrides where client deviation must be prevented.
+
+```lua
+camera:setLookTargetHard(targetX, targetY, targetZ)
+```
+
+### Clear target
+
+`camera.clearLookTarget()`
+
+Nullifies any active soft or hard target parameters, returning total rotational control to the client hardware evaluation.
+
+```lua
+camera:clearLookTarget()
+```
+

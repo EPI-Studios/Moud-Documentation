@@ -58,6 +58,23 @@ function script:_process(api, dt)
     api.set("visible", "false")
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Mover extends NodeScript {
+    @Override public void onProcess(double dt) {
+        core.setNumber("x", core.getNumber("x", 0) + 5 * dt);
+        core.setNumber("y", 10);
+        core.setNumber("ry", core.getNumber("ry", 0) + 90 * dt);
+        core.setNumber("sx", 2);
+        core.setNumber("sy", 2);
+        core.setNumber("sz", 2);
+        core.set("visible", "false");
+    }
+}
+```
 ````
 
 ### RigidBody3D
@@ -100,6 +117,20 @@ function script:_ready(api)
     api.set("shape", "sphere")
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Ball extends NodeScript {
+    @Override public void onReady() {
+        core.setNumber("mass", 5);
+        core.setNumber("gravity_scale", 0.5);
+        core.set("shape", "sphere");
+        core.set("freeze", "false");
+    }
+}
+```
 ````
 
 ### Label
@@ -135,6 +166,19 @@ function script:updateDisplay(api)
     api.set("text", "Score: " .. self.score)
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ScoreLabel extends NodeScript {
+    int score = 0;
+
+    public void updateDisplay() {
+        core.set("text", "Score: " + score);
+    }
+}
 ```
 ````
 
@@ -192,6 +236,23 @@ function script:_process(api, dt)
     api.setNumber("x", api.getNumber("x", 0) + speed * dt)
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Enemy extends NodeScript {
+    @Override public void onProcess(double dt) {
+        double health = core.getNumber("health", 100);
+        if (health <= 0) {
+            core.free(core.id());
+            return;
+        }
+        double speed = core.getNumber("speed", 5);
+        core.setNumber("x", core.getNumber("x", 0) + speed * dt);
+    }
+}
+```
 ````
 
 ## Generic Property Access (TypeScript)
@@ -240,6 +301,18 @@ api.remove("temp_flag")
 
 local hudId = api.find("../HUD/Score")
 api.set(hudId, "text", "100")
+```
+
+--- tab: Java
+```java
+String color = core.get("color_tint");
+double value = core.getNumber("slider_value", 0);
+core.set("color_tint_r", "0.5");
+core.set("text", "Hello World");
+core.remove("temp_flag");
+
+long hudId = core.find("../HUD/Score");
+core.set(hudId, "text", "100");
 ```
 ````
 
@@ -291,6 +364,20 @@ function script:_ready(api)
     api.set(scoreId, "text", "0")
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class HUDController extends NodeScript {
+    @Override public void onReady() {
+        long sun = core.find("Sun");
+        long nested = core.find("Parent/Child/GrandChild");
+        long scoreId = core.find("../HUD/Score");
+        core.set(scoreId, "text", "0");
+    }
+}
+```
 ````
 
 ### `this.getChildren()` - list child nodes
@@ -334,6 +421,20 @@ function script:_ready(api)
     end
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Container extends NodeScript {
+    @Override public void onReady() {
+        long[] children = core.getChildren(core.id());
+        for (long childId : children) {
+            core.set(childId, "visible", "false");
+        }
+    }
+}
+```
 ````
 
 ### `this.exists()` - check if a node is alive
@@ -363,6 +464,14 @@ local targetId = api.find("Target")
 if api.exists(targetId) then
     api.set(targetId, "visible", "true")
 end
+```
+
+--- tab: Java
+```java
+long targetId = core.find("Target");
+if (core.exists(targetId)) {
+    core.set(targetId, "visible", "true");
+}
 ```
 ````
 
@@ -437,6 +546,28 @@ function script:_ready(api)
     api.setNumber(label, "y", 50)
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Spawner extends NodeScript {
+    @Override public void onReady() {
+        long cube = core.createRuntime(core.id(), "MyCube", "RigidBody3D");
+        if (cube > 0) {
+            core.setNumber(cube, "x", 10);
+            core.setNumber(cube, "y", 20);
+            core.set(cube, "shape", "box");
+            core.setNumber(cube, "mass", 2);
+        }
+
+        long label = core.createRuntime(core.id(), "DamageText", "Label");
+        core.set(label, "text", "-25 HP");
+        core.setNumber(label, "x", 100);
+        core.setNumber(label, "y", 50);
+    }
+}
+```
 ````
 
 ### `this.free()` - destroy a node
@@ -482,6 +613,21 @@ function script:_on_collected(playerUuid)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Collectible extends NodeScript {
+    @Override public void onEnterTree() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_collected");
+    }
+
+    public void onCollected(Object playerUuid) {
+        core.free(core.id());
+    }
+}
+```
 ````
 
 ### `this.rename(name)` - rename a node
@@ -507,6 +653,13 @@ api.rename("NewName")
 -- or rename another node:
 api.rename(nodeId, "NewName")
 ```
+
+--- tab: Java
+```java
+core.rename("NewName");
+// or rename another node:
+core.rename(nodeId, "NewName");
+```
 ````
 
 ### `this.reparent(parent)` - move a node in the tree
@@ -530,6 +683,12 @@ api.reparent(api.id(), newParentId);
 ```lua
 local newParentId = api.find("../Container")
 api.reparent(api.id(), newParentId)
+```
+
+--- tab: Java
+```java
+long newParentId = core.find("../Container");
+core.reparent(core.id(), newParentId);
 ```
 ````
 
@@ -572,5 +731,18 @@ function script:_ready(api)
     api.flush()  -- x=10 is now applied
     local x = api.getNumber("x", 0)  -- returns 10
 end
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Repositioner extends NodeScript {
+    @Override public void onReady() {
+        core.setNumber("x", 10);
+        core.flush();  // x=10 is now applied
+        double x = core.getNumber("x", 0);  // returns 10
+    }
+}
 ```
 ````

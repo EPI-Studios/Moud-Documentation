@@ -179,3 +179,72 @@ end
 return script
 ```
 ````
+## Shadow Casting
+
+Spot and omni lights can cast shadows. The engine supports two shadow systems:
+
+### Veil Voxel Occlusion (block-based, built-in)
+
+Set `occluded` to `true` on an OmniLight3D or SpotLight3D to enable Veil's voxel-based shadow occlusion. This uses Minecraft's block grid and works without configuration — but only block geometry blocks light. Meshes and CSG nodes are invisible to it.
+
+```json
+{
+  "type": "OmniLight3D",
+  "properties": {
+    "radius": "12",
+    "brightness": "2.0",
+    "occluded": "true"
+  }
+}
+```
+
+### Moud Shadow Maps (mesh + CSG, for spot lights)
+
+Set `cast_shadows` to `true` on a SpotLight3D to enable shadow map rendering. The engine renders a depth map from the light's POV into a shared 2048×2048 atlas (up to 4 casters simultaneously: 2 near-priority at 1024×1024 and 2 far-priority at 512×512, auto-assigned by camera distance). Mesh, Sprite3D, CSGBox, and CSGBlock geometry all cast shadows and any of those plus PBR-shaded surfaces receive them.
+
+```json
+{
+  "type": "SpotLight3D",
+  "properties": {
+    "angle": "30",
+    "distance": "18",
+    "brightness": "3.0",
+    "cast_shadows": "true"
+  }
+}
+```
+
+`cast_shadows` on OmniLight3D is declared but not yet rendered — cube shadow maps are planned.
+
+**Optimization — static/dynamic caching:** the engine caches the static-scene depth per tile and only redraws dynamic casters each frame. A caster counts as dynamic if it (or any ancestor) has `script`, `client_script`, `@runtime`, `@transient`, `player_controlled`, `script_controlled`, `physics_body`, a non-zero `velocity_x`, is a `CharacterBody3D` / `RigidBody3D` / `KinematicBody3D` / `PlayerAttachment` / `Particle3D` / `AnimatedSprite3D`, or has any entry in `ClientPropertyOverrides`. Everything else is static and contributes to the cache until the scene revision changes.
+
+## Volumetric Scatter (post-process)
+
+Point, spot, and directional light data is exposed to every post-process shader via uniforms:
+
+```glsl
+struct MoudPointLight { vec3 position; vec3 color; float brightness; float radius; };
+struct MoudDirLight   { vec3 direction; vec3 color; float brightness; };
+struct MoudSpotLight  { vec3 position; vec3 direction; vec3 color; float brightness; float angle; float distance; };
+
+uniform int NumPointLights;
+uniform MoudPointLight PointLights[16];
+uniform int NumDirLights;
+uniform MoudDirLight DirLights[4];
+uniform int NumSpotLights;
+uniform MoudSpotLight SpotLights[8];
+
+uniform mat4 moud_viewProj;
+uniform mat4 moud_invViewProj;
+uniform vec3 moud_cameraPos;
+```
+
+With these, a post-process shader can raymarch the view ray and accumulate in-scattering per light. The bundled example `volumetric.moudshader` does this with Henyey-Greenstein phase scattering and cone gating for spot lights. Register it from script:
+
+```lua
+PostProcess:registerShaderPriority("volumetric", "res://shaders/volumetric.moudshader", 40)
+PostProcess:setUniform1("volumetric", "density", 0.08)
+PostProcess:setUniform1("volumetric", "scatterAnisotropy", 0.55)
+PostProcess:setUniform1("volumetric", "stepCount", 48.0)
+PostProcess:setUniform1("volumetric", "maxDistance", 64.0)
+```

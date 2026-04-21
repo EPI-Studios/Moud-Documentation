@@ -1,69 +1,153 @@
-# Installing Moud
+# Installation
 
-Welcome to Moud! Moud is a game engine that runs inside Minecraft. You build your game with scenes, scripts, materials and shaders, and Moud makes it playable on a Minecraft server with a custom Fabric client.
+Welcome to Moud, a game engine that runs inside Minecraft. You build games with scenes, scripts, materials, and shaders; Moud makes them playable on a Minestom server with a custom Fabric client mod.
 
-To get going, you need three things: the Moud server, the Moud client, and a project folder. The whole setup only takes a few minutes.
+This guide walks you through installing every component, verifying the setup, and understanding what happens on first launch.
+
+![Moud running in a terminal alongside Minecraft with the custom client connected](placeholder)
+
+---
 
 ## System Requirements
 
-| Requirement | Details |
-|---|---|
-| Java | 21 (Java 25 for LUAU scripting) |
-| Minecraft | 1.21.1 with Fabric loader |
-| OS | Windows, macOS (not fully supported), or Linux |
-| RAM | ~2 GB minimum for the server, more for large scenes |
+| Requirement | Minimum | Recommended |
+|---|---|---|
+| Java | 25 | 25  |
+| Minecraft | 1.21.1 | 1.21.1 |
+| Fabric Loader | 0.15+ | Latest stable |
+| RAM (server) | 2 GB | 4–6 GB for large scenes |
+| RAM (client) | 2 GB | 4 GB |
+| OS | Windows 10, Linux | Linux (because less slop) |
 
-```hint important Java 21 is required
-Moud uses GraalVM's JavaScript and Luau engines which require Java 25+. If you're not sure which Java you have, run `java -version` in a terminal.
+```hint warning Java version matters
+**Luau** scripting requires Java 25 (GraalVM 25+). If you only Run `java -version` to check what you have.
 ```
 
-## Installing the Server
+```hint info macOS support
+macOS is not fully supported. The server runs, but the client rendering backend may have issues on Apple devices.
+```
 
-The Moud server is a standalone Java application built on [Minestom](https://minestom.net/). It does not need a vanilla Minecraft server.
+---
 
-1. Download or build `server-minestom.jar` from the Moud repository
-2. Place it in a folder of your choice
-3. Set the environment variable `MOUD_PROJECT_ROOT` to point at your game project:
+## What You're Installing
+
+Moud has 3 pieces:
+
+| Component | What it is | Who runs it |
+|---|---|---|
+| **Moud Server** | The server that the players will join | A server (you)|
+| **Moud Client Mod** | Fabric mod for Minecraft | Each player |
+| **Your Project** | Folder of scenes, scripts, assets | On the server machine |
+
+
+---
+
+## Step 1 - Install the Moud Server
+
+### Download
+
+**TODO**
+
+### Create a Project Folder
+
+Your project folder is where Moud reads your game from.
+It will look like this at first: 
+
+![project prompt](https://files.catbox.moe/cipj8u.png)
+
+
+```text
+my-game/
+└── project.moud.json
+```
+
+### Set Environment Variables
+
+Moud is configured via environment variables, not command-line flags:
 
 ```bash
 # Linux / macOS
 export MOUD_PROJECT_ROOT=/path/to/my-game
+export MOUD_MODE=dev
 
 # Windows (PowerShell)
 $env:MOUD_PROJECT_ROOT = "C:\path\to\my-game"
+$env:MOUD_MODE = "dev"
 ```
 
-4. Set the server mode:
+| Variable | Required | Values | Description |
+|---|---|---|---|
+| `MOUD_PROJECT_ROOT` | Yes | Any directory path | Root of your game project |
+| `MOUD_MODE` | Yes | `dev`, `player` | Controls editor access and hot-reload |
+
+### Start the Server
 
 ```bash
-# dev mode - enables the in-game editor, file saving, and asset uploads
-export MOUD_MODE=dev
-
-# player mode - read-only runtime, no editor
-export MOUD_MODE=player
+java -Xmx4G -jar server-minestom.jar
 ```
 
-5. Start the server:
+You should see output like:
+
+
+![Moud server startup output in a terminal window](https://files.catbox.moe/c9m0m2.png)
+
+```hint tip Keep the terminal open
+The server runs in the foreground. Use a terminal multiplexer like `tmux` or `screen` if you want it to persist after closing your shell. Pressing Ctrl+C shuts it down cleanly.
+```
+
+---
+
+## Step 2 - Install the Moud Client Mod
+
+### Prerequisites
+
+** TODO**
+
+---
+
+## Step 3 - Connect
+
+1. Launch Minecraft using the **Fabric 1.21.1** profile in the Minecraft Launcher.
+2. Click **Multiplayer → Direct Connection**.
+3. Enter `localhost:25565` (or your server's IP).
+4. Click **Join Server**.
+
+---
+
+
+## Troubleshooting
+
+### Server won't start - "MOUD_PROJECT_ROOT not set"
+
+You must set the environment variable before running the JAR. Verify with:
 
 ```bash
-java -jar server-minestom.jar
+echo $MOUD_PROJECT_ROOT    # Linux / macOS
+echo $env:MOUD_PROJECT_ROOT # Windows PowerShell
 ```
 
-The server will load your project, start the scripting engine, and begin listening for client connections.
+If empty, set it and try again.
 
-## Installing the Client
+### Server won't start - "Port 25565 already in use"
 
-The Moud client is a Fabric mod that replaces the default Minecraft renderer with Moud's scene renderer.
+Another process is using the default Minecraft port. Options:
+- Stop the conflicting process (`lsof -i :25565` on Linux to find it)
+- Or configure Moud to use a different port in your project config
 
-1. Install [Fabric Loader](https://fabricmc.net/) for Minecraft 1.21.1
-2. Place the `client-fabric.jar` mod into your Minecraft `mods/` folder
-3. Launch Minecraft with the Fabric profile
-4. Connect to your Moud server (default: `localhost:25565`)
+### Java version error - "UnsupportedClassVersionError"
 
-```hint important First launch
-On first launch the client will download any assets your project needs from the server. This can take a moment for large projects.
+Your Java is too old. Moud requires Java 21+. Install it:
+
+```bash
+# Ubuntu / Debian
+sudo apt install openjdk-21-jdk
+
+# Arch Linux
+sudo pacman -S jdk21-openjdk
+
+# Windows - download from https://adoptium.net/
 ```
 
-## Next Steps
+Then verify: `java -version`
 
-Head to [Configuration](/1_Getting_Started/2_Configuration) to learn about the project file, or jump straight to [Your First Project](/1_Getting_Started/3_First_Project) to build something.
+---

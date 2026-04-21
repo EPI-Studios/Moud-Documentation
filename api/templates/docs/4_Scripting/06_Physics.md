@@ -46,6 +46,19 @@ function script:_physics_process(api, dt)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class SpeedChecker extends NodeScript {
+    @Override public void onPhysicsProcess(double dt) {
+        double[] vel = core.getBodyVelocity(core.id());
+        double speed = Math.sqrt(vel[0]*vel[0] + vel[1]*vel[1] + vel[2]*vel[2]);
+        log("Speed: " + speed);
+    }
+}
+```
 ````
 
 ### `this.applyForce({ x, y, z })` → `void`
@@ -66,6 +79,11 @@ api.applyForce(api.id(), 0, 200, 0);
 --- tab: Luau
 ```lua
 api.applyForce(api.id(), 0, 200, 0)
+```
+
+--- tab: Java
+```java
+core.applyForce(core.id(), 0, 200, 0);
 ```
 ````
 
@@ -88,6 +106,11 @@ api.applyImpulse(api.id(), 0, 8, 0);
 ```lua
 api.applyImpulse(api.id(), 0, 8, 0)
 ```
+
+--- tab: Java
+```java
+core.applyImpulse(core.id(), 0, 8, 0);
+```
 ````
 
 ### `this.setLinearVelocity({ x, y, z })` → `void`
@@ -108,6 +131,11 @@ api.setLinearVelocity(api.id(), 0, 10, 0);
 --- tab: Luau
 ```lua
 api.setLinearVelocity(api.id(), 0, 10, 0)
+```
+
+--- tab: Java
+```java
+core.setLinearVelocity(core.id(), 0, 10, 0);
 ```
 ````
 
@@ -166,6 +194,21 @@ function script:_enter_tree(api)
     api.set(api.id(), "collisionMask", "3")
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class HeavyBox extends NodeScript {
+    @Override public void onEnterTree() {
+        core.set(core.id(), "mass", "10");
+        core.set(core.id(), "shape", "box");
+        core.set(core.id(), "linearDamping", "0.3");
+        core.set(core.id(), "collisionLayer", "1");
+        core.set(core.id(), "collisionMask", "3");
+    }
+}
 ```
 ````
 
@@ -229,6 +272,25 @@ function script:_physics_process(api, dt)
     end
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class GroundChecker extends NodeScript {
+    @Override public void onPhysicsProcess(double dt) {
+        var hit = core.raycast(
+            core.getNumber("x", 0), core.getNumber("y", 0), core.getNumber("z", 0),
+            0, -1, 0,
+            1.1
+        );
+        if (hit != null) {
+            log("Ground at y=" + hit.y());
+            log("Hit body: " + hit.bodyId());
+        }
+    }
+}
 ```
 ````
 
@@ -306,6 +368,25 @@ function script:_physics_process(api, dt)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ProximityTrigger extends NodeScript {
+    @Override public void onPhysicsProcess(double dt) {
+        int[] nearby = core.overlapSphere(
+            core.getNumber("x", 0),
+            core.getNumber("y", 0),
+            core.getNumber("z", 0),
+            5.0
+        );
+        for (int bodyId : nearby) {
+            log("Body in range: " + bodyId);
+        }
+    }
+}
+```
 ````
 
 ## Collision Events
@@ -355,6 +436,21 @@ function script:_physics_process(api, dt)
     end
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ImpactDetector extends NodeScript {
+    @Override public void onPhysicsProcess(double dt) {
+        var events = core.getCollisionEvents();
+        for (var e : events) {
+            log(e.nodeIdA() + " hit " + e.nodeIdB() +
+                " at " + e.contactX() + "," + e.contactY() + "," + e.contactZ());
+        }
+    }
+}
 ```
 ````
 
@@ -434,6 +530,26 @@ function script:_on_exit(playerUuid)
 end
 
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class TriggerZone extends NodeScript {
+    @Override public void onEnterTree() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_enter");
+        core.connect(core.id(), "area_exited",  core.id(), "_on_exit");
+    }
+
+    public void onEnter(Object playerUuid) {
+        log("Entered: " + playerUuid);
+    }
+
+    public void onExit(Object playerUuid) {
+        log("Exited: " + playerUuid);
+    }
+}
 ```
 ````
 
@@ -530,6 +646,34 @@ end
 
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class BouncyBall extends NodeScript {
+    double bounceForce = 12;
+
+    @Override public void onEnterTree() {
+        core.set(core.id(), "mass", "1");
+        core.set(core.id(), "shape", "sphere");
+        core.set(core.id(), "gravityScale", "1");
+        core.set(core.id(), "linearDamping", "0.05");
+    }
+
+    @Override public void onPhysicsProcess(double dt) {
+        var events = core.getCollisionEvents();
+        long myId = core.id();
+        for (var e : events) {
+            if (e.nodeIdA() != myId && e.nodeIdB() != myId) continue;
+            double[] vel = core.getBodyVelocity(myId);
+            if (vel[1] < -0.5) {
+                core.applyImpulse(myId, 0, bounceForce, 0);
+            }
+        }
+    }
+}
+```
 ````
 
 ## Complete Example: Trigger Zone with Score
@@ -608,5 +752,28 @@ function script:_on_exit(playerUuid)
 end
 
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ScoreZone extends NodeScript {
+    int pointsPerEntry = 10;
+
+    @Override public void onEnterTree() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_enter");
+        core.connect(core.id(), "area_exited",  core.id(), "_on_exit");
+    }
+
+    public void onEnter(Object playerUuid) {
+        log("+" + pointsPerEntry + " pts for " + playerUuid);
+        core.emit_signal("score_awarded", playerUuid, pointsPerEntry);
+    }
+
+    public void onExit(Object playerUuid) {
+        log(playerUuid + " left the score zone");
+    }
+}
 ```
 ````

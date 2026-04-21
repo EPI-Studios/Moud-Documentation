@@ -288,3 +288,51 @@ end
 | `name()` | string | Player display name |
 | `x()`, `y()`, `z()` | double | Position |
 | `ry()` | double | Yaw rotation |
+
+## Input Actions (InputMap)
+
+Moud exposes a Godot-style action abstraction on top of raw keys. Actions have string names and can be bound to one or more keyboard keys, mouse buttons, or gamepad buttons. Bindings are loaded from the defaults shipped with the engine, overlaid with the player's local bindings file (`moud-bindings.json` in the Fabric config dir), and can be rebound at runtime.
+
+Default actions: `forward`, `back`, `left`, `right`, `jump`, `sprint`, `sneak`, `attack`, `use`, `reload`, `interact`, `menu`.
+
+### Querying from a client script
+
+```lua
+function script:onFrame(dt)
+    if input:isDown("forward") then
+        -- move forward
+    end
+    if input:isPressed("jump") then
+        -- fire once on press
+    end
+    if input:isReleased("attack") then
+        -- fire once on release
+    end
+end
+```
+
+### Listing and rebinding
+
+```lua
+local actions = input:actions()
+for _, name in ipairs(actions) do
+    local bindings = input:getBindings(name)
+    print(name, table.concat(bindings, ", "))
+end
+
+input:setBinding("jump", "key:32")              -- space
+input:addBinding("attack", "mouse:0")           -- also left-click
+input:addBinding("jump", "gamepad:0")           -- also gamepad A
+input:resetBindings("jump")                      -- restore default
+input:resetAllBindings()                         -- restore all defaults
+```
+
+### Binding token format
+
+`type:code` where `type` is `key`, `mouse`, or `gamepad`:
+
+- `key:<glfw_keycode>` — e.g. `key:32` for Space, `key:69` for E
+- `mouse:<button>` — 0 = left, 1 = right, 2 = middle
+- `gamepad:<button>` — GLFW gamepad button index (0 = A/Cross, 1 = B/Circle, ...)
+
+Bindings persist to `moud-bindings.json` automatically on every call to `setBinding`, `addBinding`, `resetBindings`, or `resetAllBindings`.

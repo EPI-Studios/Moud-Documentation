@@ -21,6 +21,24 @@
     overflow: visible !important;
 }
 
+.mdoc-mermaid {
+    padding: 16px;
+    background-color: transparent;
+    border: none;
+    display: flex;
+    justify-content: center;
+}
+
+.mdoc-mermaid pre.mermaid {
+    margin: 0;
+    background: none;
+}
+
+.mdoc-mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
 .mdoc-glsl-canvas[data-no-ui="true"] .component-header,
 .mdoc-glsl-canvas[data-no-ui="true"] .component-body,
 .mdoc-glsl-canvas[data-no-ui="true"] .glsl-controls,

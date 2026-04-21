@@ -47,6 +47,21 @@ function script:_on_touched(playerUuid)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Collectible extends NodeScript {
+    @Override public void onEnterTree() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_touched");
+    }
+
+    public void onTouched(Object playerUuid) {
+        log("Touched by: " + playerUuid);
+    }
+}
+```
 ````
 
 ### `this.connect` / `this.disconnect` - Programmatic
@@ -109,6 +124,22 @@ function script:_on_enter(playerUuid)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Manager extends NodeScript {
+    @Override public void onReady() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_enter");
+    }
+
+    public void onEnter(Object playerUuid) {
+        log("Entered: " + playerUuid);
+        core.disconnect(core.id(), "area_entered", core.id(), "_on_enter");
+    }
+}
+```
 ````
 
 ## Emitting Signals
@@ -139,6 +170,14 @@ api.emit_signal("hit", targetId, 50, "fire");
 api:emit_signal("door_opened")
 api:emit_signal("damage_taken", 25)
 api:emit_signal("item_used", "potion", 1)
+```
+
+--- tab: Java
+```java
+core.emit_signal("door_opened");
+core.emit_signal("damage_taken", 25);
+core.emit_signal("item_used", "potion", 1);
+core.emit_signal("hit", targetId, 50, "fire");
 ```
 ````
 
@@ -178,6 +217,13 @@ api.emit_signal("damage_taken", 10);
 -- Luau does not use @emits - emit_signal works without declaration
 api:emit_signal("collected")
 api:emit_signal("damage_taken", 10)
+```
+
+--- tab: Java
+```java
+// Java does not use @emits - emit_signal works without declaration
+core.emit_signal("collected");
+core.emit_signal("damage_taken", 10);
 ```
 ````
 
@@ -305,6 +351,42 @@ function script:_on_orb(playerUuid)
 end
 return script
 ```
+
+--- tab: Java
+```java
+// Orb.java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Orb extends NodeScript {
+    @Override public void onEnterTree() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_enter");
+    }
+
+    public void onEnter(Object playerUuid) {
+        core.emit_signal("collected", playerUuid);
+        core.free(core.id());
+    }
+}
+
+// ScoreManager.java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ScoreManager extends NodeScript {
+    int score = 0;
+
+    @Override public void onReady() {
+        long[] orbs = core.findNodesByType("Area3D");
+        for (long orbId : orbs) {
+            core.connect(orbId, "collected", core.id(), "_on_orb");
+        }
+    }
+
+    public void onOrb(Object playerUuid) {
+        score++;
+        log("Score: " + score);
+    }
+}
+```
 ````
 
 ## Timers
@@ -355,6 +437,17 @@ function script:_ready(api)
     end)
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Demo extends NodeScript {
+    @Override public void onReady() {
+        core.after(2.0, () -> log("2 seconds passed!"));
+    }
+}
+```
 ````
 
 ## Tweens
@@ -401,93 +494,13 @@ api.tween(api.id(), "x", 10, 0.5)
 api.tween(api.id(), "ry", 90, 1.0)
 api.tween(panelId, "modulate_a", 0, 0.3)
 ```
+
+--- tab: Java
+```java
+core.tween(core.id(), "x", 10, 0.5);
+core.tween(core.id(), "ry", 90, 1.0);
+core.tween(panelId, "modulate_a", 0, 0.3);
+```
 ````
 
 Tweens run on the server and replicate to clients, so the animation looks smooth for all players.
-
-## Complete Example: Door with Timer Chain
-
-A door that opens on signal, waits, then closes automatically.
-
-````tabs
---- tab: TypeScript
-```typescript
-import { Area3D, signal } from "moud";
-import { after } from "moud/timers";
-
-export default class Door extends Area3D {
-  private isOpen = false;
-
-  @signal("area_entered")
-  onPlayerEnter(playerUuid: string) {
-    if (this.isOpen) return;
-    this.open();
-  }
-
-  private open() {
-    this.isOpen = true;
-    // Swing door open
-    this.tween({ property: "ry", to: 90, duration: 0.6 });
-
-    // Auto-close after 3 seconds
-    after(3.0, () => this.close());
-  }
-
-  private close() {
-    this.tween({
-      property: "ry",
-      to: 0,
-      duration: 0.6,
-      onComplete: () => {
-        this.isOpen = false;
-      },
-    });
-  }
-}
-```
-
---- tab: JavaScript
-```js
-({
-  isOpen: false,
-
-  _enter_tree(api) {
-    this.api = api;
-    api.connect(api.id(), "area_entered", api.id(), "_on_enter");
-  },
-
-  _on_enter(playerUuid) {
-    if (this.isOpen) return;
-    this.isOpen = true;
-    var self = this;
-    this.api.tween(this.api.id(), "ry", 90, 0.6);
-    this.api.after(3.0, function() {
-      self.api.tween(self.api.id(), "ry", 0, 0.6);
-      self.isOpen = false;
-    });
-  }
-})
-```
-
---- tab: Luau
-```lua
-local script = { isOpen = false }
-
-function script:_enter_tree(api)
-    self.api = api
-    api.connect(api.id(), "area_entered", api.id(), "_on_enter")
-end
-
-function script:_on_enter(playerUuid)
-    if self.isOpen then return end
-    self.isOpen = true
-    self.api.tween(self.api:id(), "ry", 90, 0.6)
-    self.api.after(3.0, function()
-        self.api.tween(self.api:id(), "ry", 0, 0.6)
-        self.isOpen = false
-    end)
-end
-
-return script
-```
-````

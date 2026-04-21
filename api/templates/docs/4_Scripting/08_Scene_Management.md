@@ -1,14 +1,14 @@
 # Scene Management API
 
-Load scenes, instantiate subscenes, query the scene tree, and control the scene lifecycle from scripts.
+The `moud/scene` module provides methods for runtime scene evaluation and lifecycle management. Scripts utilize these functions to transition between environments, instantiate hierarchical subgraphs, traverse the active node structure, and force synchronous state updates.
 
-All scene management functions are imported from `moud/scene`.
+---
 
-## Loading Scenes
+## Loading scenes
 
-### `loadScene(id)` - from `moud/scene`
+`loadScene(id: string)`
 
-Replaces the current scene with the scene identified by `id`. The `id` matches the `sceneId` field in the target scene file.
+Replaces the executing scene with the target scene environment. The `id` parameter evaluates against the `sceneId` property defined within the root of the target `.moud.scene` JSON file.
 
 ````tabs
 --- tab: TypeScript
@@ -53,25 +53,30 @@ end
 
 return script
 ```
-````
 
-The `sceneId` comes from the target scene file:
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
 
-```json
-{
-  "format": 1,
-  "sceneId": "level_1",
-  "displayName": "Level 1 - The Forest"
+public final class MainMenu extends NodeScript {
+    @Override public void onEnterTree() {
+        core.connect(core.id(), "pressed", core.id(), "_on_play");
+    }
+
+    public void onPlay() {
+        core.loadScene("level_1");
+    }
 }
 ```
+````
 
-## Instantiating Subscenes
+---
 
-### `instantiate<T>(path, parent)` - from `moud/scene`
+## Instantiating subscenes
 
-Instantiates a `.moud.scene` file as a subtree under the given parent node. Returns a typed reference to the root node of the instantiated tree.
+`instantiate<T>(path: string, parent: Node | long)`
 
-Use this to spawn prefabs, enemies, pickups, or any reusable scene authored in the editor.
+Instantiates an external `.moud.scene` file as a child hierarchy beneath the designated `parent` node. Returns a typed reference (or numerical node ID) to the root node of the allocated subgraph. 
 
 ````tabs
 --- tab: TypeScript
@@ -84,11 +89,9 @@ export default class Spawner extends Node3D {
   init() {
     const root = getRoot();
 
-    // Spawn an enemy prefab under the scene root
     const enemy = instantiate<RigidBody3D>("scenes/enemy.moud.scene", root);
     enemy.position = { x: 5, y: 0, z: 0 };
 
-    // Spawn a decoration under this node
     instantiate("scenes/tree.moud.scene", this);
   }
 }
@@ -100,11 +103,9 @@ export default class Spawner extends Node3D {
   _ready(api) {
     this.api = api;
 
-    // Spawn under root
     var enemy = api.instantiate("scenes/enemy.moud.scene", api.getRootId());
     api.set(enemy, "x", "5");
 
-    // Spawn under this node
     api.instantiate("scenes/tree.moud.scene", api.id());
   }
 })
@@ -125,13 +126,29 @@ end
 
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Spawner extends NodeScript {
+    @Override public void onReady() {
+        long enemy = core.instantiate("scenes/enemy.moud.scene", core.getRootId());
+        core.set(enemy, "x", "5");
+
+        core.instantiate("scenes/tree.moud.scene", core.id());
+    }
+}
+```
 ````
 
-## Getting the Scene Root
+---
 
-### `getRoot()` - from `moud/scene`
+## Scene root evaluation
 
-Returns a reference to the root node of the current scene. Useful when you need to instantiate a scene at the top level rather than as a child of the current node.
+`getRoot()`
+
+Returns a reference (or numerical node ID) to the absolute root node of the executing scene graph.
 
 ````tabs
 --- tab: TypeScript
@@ -169,13 +186,27 @@ end
 
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class LevelManager extends NodeScript {
+    @Override public void onReady() {
+        long rootId = core.getRootId();
+        log("Scene root id: " + rootId);
+    }
+}
+```
 ````
 
-## Finding Nodes by Type
+---
 
-### `findNodesByType<T>(type)` - from `moud/scene`
+## Type-based traversal
 
-Returns an array of all nodes in the current scene tree that match the given type. Import `NodeType` from `"moud"` for the type enum.
+`findNodesByType<T>(type: string | NodeType)`
+
+Iterates the active scene graph and returns an array of instantiated nodes matching the specified class type. In TypeScript, the target class is evaluated using the `NodeType` enum.
 
 ````tabs
 --- tab: TypeScript
@@ -186,9 +217,7 @@ import { findNodesByType } from "moud/scene";
 export default class Manager extends Node3D {
   @ready()
   init() {
-    // Find all Area3D nodes in the scene
     const zones = findNodesByType<Area3D>(NodeType.Area3D);
-    console.log(`Found ${zones.length} trigger zones`);
 
     for (const zone of zones) {
       zone.connect({
@@ -211,7 +240,6 @@ export default class Manager extends Node3D {
   _ready(api) {
     this.api = api;
     var zones = api.findNodesByType("Area3D");
-    api.log("Found " + zones.length + " trigger zones");
 
     for (var i = 0; i < zones.length; i++) {
       api.connect(zones[i], "area_entered", api.id(), "_on_zone_entered");
@@ -231,7 +259,6 @@ local script = {}
 function script:_ready(api)
     self.api = api
     local zones = api.findNodesByType("Area3D")
-    api.log("Found " .. #zones .. " trigger zones")
 
     for _, zoneId in ipairs(zones) do
         api.connect(zoneId, "area_entered", api.id(), "_on_zone_entered")
@@ -244,27 +271,46 @@ end
 
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Manager extends NodeScript {
+    @Override public void onReady() {
+        long[] zones = core.findNodesByType("Area3D");
+
+        for (long zoneId : zones) {
+            core.connect(zoneId, "area_entered", core.id(), "_on_zone_entered");
+        }
+    }
+
+    public void onZoneEntered(Object playerUuid) {
+        log("Player " + playerUuid + " entered a zone");
+    }
+}
+```
 ````
 
-## Flushing Pending Operations
+---
 
-### `this.flush()` → `void`
+## Synchronous state execution
 
-Forces all pending scene operations to be applied immediately within the current tick.
+`flush()`
 
-Normally, scene mutations (property writes, node creation, reparenting) are batched and applied together at the end of the tick. Call `flush()` when you need a change to be visible to a subsequent API call in the same tick.
+Forces immediate execution of all pending scene mutations (e.g., property modifications, node instantiation) within the active server tick.
+
+By default, the engine batches scene operations for end-of-tick execution. Evaluating `flush()` overrides this batching, ensuring subsequent synchronous API calls evaluate against the mutated scene state.
 
 ````tabs
 --- tab: TypeScript
 ```typescript
 import { Node3D, ready } from "moud";
-import { instantiate } from "moud/scene";
 
 export default class SetupScript extends Node3D {
   @ready()
   init() {
     const child = this.createChild("Marker", "Node3D");
-    // Without flush, position read-back in the same tick may return stale data
     this.flush();
     console.log(`Marker at: ${child.position.x}`);
   }
@@ -278,7 +324,6 @@ export default class SetupScript extends Node3D {
     var node = api.createRuntime(0, "Marker", "Node3D");
     api.set(node, "x", "10");
     api.flush();
-    // Now api.getNumber(node, "x", 0) reliably returns 10
     api.log("x is: " + api.getNumber(node, "x", 0));
   }
 })
@@ -297,121 +342,18 @@ end
 
 return script
 ```
-````
 
-In most cases you do not need `flush()`. Default batching is fine and more efficient.
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
 
-## Complete Example: Scene Switcher with Loading Screen
-
-A button-driven scene switcher that briefly shows a loading label before transitioning. Demonstrates `loadScene`, `instantiate`, `findNodesByType`, and a timer chain.
-
-````tabs
---- tab: TypeScript
-```typescript
-import { Node3D, Label, signal, ready } from "moud";
-import { loadScene, findNodesByType } from "moud/scene";
-import { NodeType } from "moud";
-import { after } from "moud/timers";
-
-export default class SceneSwitcher extends Node3D {
-  private nextScene = "level_2";
-  private transitioning = false;
-
-  @ready()
-  init() {
-    // Connect every button in the scene to the switch handler
-    const buttons = findNodesByType(NodeType.Button);
-    for (const btn of buttons) {
-      btn.connect({ signal: "pressed", target: this, handler: this.onSwitch });
+public final class SetupScript extends NodeScript {
+    @Override public void onReady() {
+        long node = core.createRuntime(0, "Marker", "Node3D");
+        core.set(node, "x", "10");
+        core.flush();
+        log("x is: " + core.getNumber(node, "x", 0));
     }
-  }
-
-  @signal("pressed")
-  onSwitch() {
-    if (this.transitioning) return;
-    this.transitioning = true;
-
-    // Show a loading label
-    const label = this.find<Label>("UI/LoadingLabel");
-    if (label) {
-      label.text = "Loading...";
-      label.visible = true;
-    }
-
-    // Fade in the label, wait, then load
-    if (label) {
-      label.tween({ property: "modulate_a", to: 1, duration: 0.3 });
-    }
-
-    after(0.5, () => {
-      loadScene(this.nextScene);
-    });
-  }
 }
-```
-
---- tab: JavaScript
-```js
-({
-  nextScene: "level_2",
-  transitioning: false,
-
-  _ready(api) {
-    this.api = api;
-    var buttons = api.findNodesByType("Button");
-    for (var i = 0; i < buttons.length; i++) {
-      api.connect(buttons[i], "pressed", api.id(), "_on_switch");
-    }
-  },
-
-  _on_switch() {
-    if (this.transitioning) return;
-    this.transitioning = true;
-
-    var self = this;
-    var label = this.api.find("UI/LoadingLabel");
-    if (label) {
-      this.api.set(label, "text", "Loading...");
-      this.api.set(label, "visible", "true");
-      this.api.tween(label, "modulate_a", 1, 0.3);
-    }
-
-    this.api.after(0.5, function() {
-      self.api.loadScene(self.nextScene);
-    });
-  }
-})
-```
-
---- tab: Luau
-```lua
-local script = { nextScene = "level_2", transitioning = false }
-
-function script:_ready(api)
-    self.api = api
-    local buttons = api.findNodesByType("Button")
-    for _, btnId in ipairs(buttons) do
-        api.connect(btnId, "pressed", api.id(), "_on_switch")
-    end
-end
-
-function script:_on_switch()
-    if self.transitioning then return end
-    self.transitioning = true
-
-    local label = self.api:find("UI/LoadingLabel")
-    if label then
-        self.api:set(label, "text", "Loading...")
-        self.api:set(label, "visible", "true")
-        self.api.tween(label, "modulate_a", 1, 0.3)
-    end
-
-    local self_ref = self
-    self.api.after(0.5, function()
-        self_ref.api:loadScene(self_ref.nextScene)
-    end)
-end
-
-return script
 ```
 ````

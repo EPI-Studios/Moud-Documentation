@@ -270,7 +270,7 @@ h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 16px; letter-spacing: -
     padding: 0;
 }
 
-/* suppress redundant language label inside tabs — the tab button already names the language */
+/* suppress redundant language label inside tabs - the tab button already names the language */
 .mdoc-tab-panel .code-header {
     display: none;
 }

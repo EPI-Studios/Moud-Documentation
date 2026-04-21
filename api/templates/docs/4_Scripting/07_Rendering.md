@@ -2,6 +2,8 @@
 
 Control shader uniforms and GPU instancing from scripts. These APIs let you drive visual effects, animated materials, and large crowds of objects entirely from script.
 
+For particle emitter scripting (`emit`, `burst`, `moveTo`, …), see the dedicated [Particles scripting page](/4_Scripting/13_Particles).
+
 ## Shader Uniforms
 
 ### `this.setUniform(name, ...values)` → `void`
@@ -77,6 +79,27 @@ function script:_process(api, dt)
 end
 
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class AnimatedMaterial extends NodeScript {
+    double elapsed = 0;
+
+    @Override public void onEnterTree() {
+        core.setUniform(core.id(), "color", 1.0, 0.5, 0.0);
+    }
+
+    @Override public void onProcess(double dt) {
+        elapsed += dt;
+        core.setUniform(core.id(), "time", elapsed);
+
+        double intensity = 0.5 + 0.5 * Math.sin(elapsed * 2);
+        core.setUniform(core.id(), "wave_intensity", intensity);
+    }
+}
 ```
 ````
 
@@ -193,6 +216,34 @@ function script:_enter_tree(api)
 end
 
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+import java.util.Random;
+
+public final class InstancedForest extends NodeScript {
+    @Override public void onEnterTree() {
+        int count = 500;
+        double[] data = new double[count * 13];
+        Random r = new Random();
+
+        for (int i = 0; i < count; i++) {
+            int b = i * 13;
+            data[b]     = (r.nextDouble() - 0.5) * 100; // px
+            data[b + 1] = 0;                             // py
+            data[b + 2] = (r.nextDouble() - 0.5) * 100; // pz
+            data[b + 3] = 0; data[b + 4] = 0; data[b + 5] = 0; data[b + 6] = 1; // quat identity
+            data[b + 7] = 1; data[b + 8] = 1 + r.nextDouble(); data[b + 9] = 1; // scale
+            data[b + 10] = 0.2 + r.nextDouble() * 0.4;   // cr
+            data[b + 11] = 0.6;                          // cg
+            data[b + 12] = 0.2;                          // cb
+        }
+
+        core.setInstances(core.id(), data);
+    }
+}
 ```
 ````
 
@@ -360,4 +411,114 @@ end
 
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+import java.util.Random;
+
+public final class ParticleField extends NodeScript {
+    int count = 1000;
+    double[][] particles; // [angle, radius, speed, height]
+    double elapsed = 0;
+
+    @Override public void onEnterTree() {
+        Random r = new Random();
+        particles = new double[count][4];
+        for (int i = 0; i < count; i++) {
+            particles[i][0] = r.nextDouble() * Math.PI * 2;
+            particles[i][1] = 2 + r.nextDouble() * 18;
+            particles[i][2] = 0.3 + r.nextDouble() * 1.2;
+            particles[i][3] = (r.nextDouble() - 0.5) * 6;
+        }
+    }
+
+    @Override public void onProcess(double dt) {
+        elapsed += dt;
+        double[] data = new double[count * 13];
+
+        for (int i = 0; i < count; i++) {
+            double[] p = particles[i];
+            p[0] += p[2] * dt;
+
+            int b = i * 13;
+            data[b]     = Math.cos(p[0]) * p[1];
+            data[b + 1] = p[3];
+            data[b + 2] = Math.sin(p[0]) * p[1];
+            data[b + 3] = 0; data[b + 4] = 0; data[b + 5] = 0; data[b + 6] = 1;
+            data[b + 7] = 0.2; data[b + 8] = 0.2; data[b + 9] = 0.2;
+            double hue = (((double) i / count) + elapsed * 0.1) % 1;
+            data[b + 10] = hue;
+            data[b + 11] = 1 - hue;
+            data[b + 12] = 0.5;
+        }
+
+        core.setInstances(core.id(), data);
+    }
+}
+```
 ````
+
+---
+
+## Minecraft HUD Suppression
+
+Client scripts can hide all or part of Minecraft's built-in HUD so their own UI has the screen to itself. Toggles are independent — hiding the crosshair does not affect the hotbar. All methods live on the global `render` API.
+
+### Whole-HUD toggles
+
+| Method | Description |
+|---|---|
+| `render:setMcHudHidden(hidden: bool)` | Hides the entire vanilla HUD in one call (equivalent to `F1`). |
+| `render:isMcHudHidden()` | Returns the current global state. |
+| `render:setVanillaHandHidden(hidden: bool)` | Suppresses MC's first-person arm, which renders after post-process and would otherwise bypass render-scale / dither effects. |
+| `render:isVanillaHandHidden()` | Returns the current state. |
+
+### Granular component toggles
+
+| Method | Description |
+|---|---|
+| `render:setMcHudComponentHidden(component: string, hidden: bool)` | Hides only the named HUD component. |
+| `render:isMcHudComponentHidden(component: string)` | Returns the current state of the component. |
+| `render:resetMcHudComponents()` | Restores every per-component flag to `false` (vanilla behavior). |
+
+### Supported component keys
+
+Keys are case-insensitive; common aliases are accepted.
+
+| Canonical | Aliases | What it hides |
+|---|---|---|
+| `crosshair` |  | Center reticle |
+| `hotbar` |  | Bottom-center hotbar + held-item highlight |
+| `status_bars` | `statusbars`, `health`, `hearts` | Hearts, food, air, armor, mount health |
+| `experience_bar` | `xp`, `experience` | Green XP bar and level number |
+| `status_effects` | `effects` | Top-right effect icon grid |
+| `scoreboard` |  | Sidebar objective display |
+| `chat` |  | Chat history lines (does not hide input box when typing) |
+| `player_list` | `playerlist`, `tab` | Tab-menu overlay |
+| `held_item_tooltip` | `item_tooltip` | Item name popup above hotbar on switch |
+| `overlay_message` | `action_bar`, `actionbar` | Action bar text line |
+| `title` | `subtitle` | Title / subtitle text (single flag covers both) |
+| `vignette` |  | Red/black damage-and-suffocation overlay |
+| `boss_bar` | `bossbar` | Dragon / Wither / custom boss bars at top |
+
+Unknown component strings are silently ignored so scripts can forward-reference future toggles without crashing.
+
+### Example: FPS HUD takeover
+
+```lua
+function script:onReady()
+    render:setMcHudComponentHidden("crosshair", true)
+    render:setMcHudComponentHidden("hotbar", true)
+    render:setMcHudComponentHidden("status_bars", true)
+    render:setMcHudComponentHidden("experience_bar", true)
+    render:setMcHudComponentHidden("status_effects", true)
+    render:setMcHudComponentHidden("held_item_tooltip", true)
+    render:setMcHudComponentHidden("vignette", true)
+    render:setVanillaHandHidden(true)
+end
+```
+
+### Cleanup
+
+Flags persist across script reloads until explicitly reset. Call `render:resetMcHudComponents()` when disposing your script if you want MC's HUD to return to defaults, otherwise the hidden components stay hidden until the client is restarted.
