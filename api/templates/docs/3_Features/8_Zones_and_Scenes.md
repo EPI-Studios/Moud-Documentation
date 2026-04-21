@@ -44,6 +44,17 @@ function script:_ready(api)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class SceneLoader extends NodeScript {
+    @Override public void onReady() {
+        scene.loadScene("dungeon");
+    }
+}
+```
 ````
 
 The `sceneId` parameter evaluates against the top-level identifier defined in the target `.moud.scene` file:
@@ -139,6 +150,17 @@ function script:_ready(api)
   local childId = api.instantiate("dungeon_room", api.id())
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class PrefabSpawner extends NodeScript {
+    @Override public void onReady() {
+        int childId = core.instantiate("dungeon_room", core.id());
+    }
+}
 ```
 ````
 
@@ -248,6 +270,26 @@ function script:_on_area_exited(playerUuid)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ZoneListener extends NodeScript {
+    @Override public void onReady() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_area_entered");
+        core.connect(core.id(), "area_exited", core.id(), "_on_area_exited");
+    }
+
+    public void onAreaEntered(Object playerUuid) {
+        // Execution routine for overlap entry
+    }
+
+    public void onAreaExited(Object playerUuid) {
+        // Execution routine for overlap exit
+    }
+}
+```
 ````
 
 ---
@@ -302,6 +344,21 @@ function script:_on_area_entered(playerUuid)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Teleporter extends NodeScript {
+    @Override public void onReady() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_area_entered");
+    }
+
+    public void onAreaEntered(Object playerUuid) {
+        core.teleportPlayer((String) playerUuid, 0.0, 10.0, 0.0);
+    }
+}
+```
 ````
 
 ### Scene transition
@@ -351,6 +408,21 @@ function script:_on_area_entered(_playerUuid)
   self.api.loadScene("dungeon")
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ExitDoor extends NodeScript {
+    @Override public void onReady() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_area_entered");
+    }
+
+    public void onAreaEntered(Object playerUuid) {
+        scene.loadScene("dungeon");
+    }
+}
 ```
 ````
 
@@ -480,6 +552,51 @@ function script:_process(api, dt)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+import java.util.HashSet;
+import java.util.HashMap;
+
+public final class DamageZone extends NodeScript {
+    private static final double DAMAGE_INTERVAL = 1.0;
+    private final HashSet<String> playersInside = new HashSet<>();
+    private final HashMap<String, Double> timers = new HashMap<>();
+
+    @Override public void onReady() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_area_entered");
+        core.connect(core.id(), "area_exited", core.id(), "_on_area_exited");
+    }
+
+    public void onAreaEntered(Object playerUuid) {
+        String uuid = (String) playerUuid;
+        playersInside.add(uuid);
+        timers.put(uuid, 0.0);
+    }
+
+    public void onAreaExited(Object playerUuid) {
+        String uuid = (String) playerUuid;
+        playersInside.remove(uuid);
+        timers.remove(uuid);
+    }
+
+    @Override public void onProcess(double dt) {
+        for (String uuid : playersInside) {
+            double t = timers.getOrDefault(uuid, 0.0) + dt;
+            timers.put(uuid, t);
+            if (t >= DAMAGE_INTERVAL) {
+                timers.put(uuid, 0.0);
+                int playerNodeId = core.find(uuid);
+                if (core.exists(playerNodeId)) {
+                    double health = core.getNumber(playerNodeId, "health", 100);
+                    core.set(playerNodeId, "health", String.valueOf(health - 10));
+                }
+            }
+        }
+    }
+}
+```
 ````
 
 ### WorldEnvironment mutation
@@ -569,6 +686,35 @@ function script:_on_area_exited(_playerUuid)
   self.api.set(env, "ambient_light_b", "0.4")
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class CaveZone extends NodeScript {
+    @Override public void onReady() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_area_entered");
+        core.connect(core.id(), "area_exited", core.id(), "_on_area_exited");
+    }
+
+    public void onAreaEntered(Object playerUuid) {
+        int env = core.find("WorldEnvironment");
+        core.set(env, "fog_enabled", "true");
+        core.set(env, "fog_density", "0.08");
+        core.set(env, "ambient_light_r", "0.05");
+        core.set(env, "ambient_light_g", "0.05");
+        core.set(env, "ambient_light_b", "0.1");
+    }
+
+    public void onAreaExited(Object playerUuid) {
+        int env = core.find("WorldEnvironment");
+        core.set(env, "fog_enabled", "false");
+        core.set(env, "ambient_light_r", "0.4");
+        core.set(env, "ambient_light_g", "0.4");
+        core.set(env, "ambient_light_b", "0.4");
+    }
+}
 ```
 ````
 
@@ -689,6 +835,24 @@ function script:spawnRoom(api, sceneId, x, y, z)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class RoomSpawner extends NodeScript {
+    @Override public void onReady() {
+        spawnRoom("dungeon_room", 10, 0, 20);
+    }
+
+    private void spawnRoom(String sceneId, double x, double y, double z) {
+        int rootId = core.instantiate(sceneId, 0);
+        core.set(rootId, "x", String.valueOf(x));
+        core.set(rootId, "y", String.valueOf(y));
+        core.set(rootId, "z", String.valueOf(z));
+    }
+}
+```
 ````
 
 To deallocate a dynamically generated subtree, pass the node ID to `api.free()`:
@@ -707,6 +871,11 @@ api.free(subtreeRootId);
 --- tab: Luau
 ```lua
 api.free(subtreeRootId)
+```
+
+--- tab: Java
+```java
+core.free(subtreeRootId);
 ```
 ````
 
@@ -779,4 +948,23 @@ function script:_on_area_entered(_playerUuid)
   self.api.loadScene("dungeon")
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ExitDoor extends NodeScript {
+    private boolean transitioning = false;
+
+    @Override public void onReady() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_area_entered");
+    }
+
+    public void onAreaEntered(Object playerUuid) {
+        if (transitioning) return;
+        transitioning = true;
+        scene.loadScene("dungeon");
+    }
+}
 ```

@@ -107,6 +107,23 @@ api.setLinearVelocity(cubeId, 0, 10, 0)
 local vel = api.getBodyVelocity(cubeId)
 api.log("vx=" .. vel[1] .. " vy=" .. vel[2] .. " vz=" .. vel[3])
 ```
+
+--- tab: Java
+```java
+// Apply a continuous force (acceleration)
+core.applyForce(cubeId, 0, 100, 0);  // push upward
+
+// Apply an instant impulse (launch)
+core.applyImpulse(cubeId, 10, 50, 0);  // fling up and to the right
+
+// Set velocity directly
+core.setLinearVelocity(cubeId, 0, 10, 0);  // shoot upward
+
+// Read current velocity
+double[] vel = core.getBodyVelocity(cubeId);
+// vel[0] = vx, vel[1] = vy, vel[2] = vz
+core.log("Speed: " + Math.sqrt(vel[0]*vel[0] + vel[1]*vel[1] + vel[2]*vel[2]));
+```
 ````
 
 ### Force vs Impulse
@@ -143,6 +160,19 @@ if hit then
     api.log("Distance: " .. hit.distance())
 end
 ```
+
+--- tab: Java
+```java
+// raycast(originX, originY, originZ, dirX, dirY, dirZ, maxDistance)
+var hit = core.raycast(0, 10, 0, 0, -1, 0, 50);  // cast downward
+
+if (hit != null) {
+    core.log("Hit node " + hit.bodyId());
+    core.log("At: " + hit.x() + ", " + hit.y() + ", " + hit.z());
+    core.log("Normal: " + hit.nx() + ", " + hit.ny() + ", " + hit.nz());
+    core.log("Distance: " + hit.distance());
+}
+```
 ````
 
 Returns `null`/`nil` if nothing was hit.
@@ -167,6 +197,15 @@ local bodies = api.overlapSphere(0, 5, 0, 10)
 for _, bodyId in ipairs(bodies) do
     api.log("Body in range: " .. bodyId)
 end
+```
+
+--- tab: Java
+```java
+// overlapSphere(x, y, z, radius)
+long[] bodies = core.overlapSphere(0, 5, 0, 10);
+for (int i = 0; i < bodies.length; i++) {
+    core.log("Body in range: " + bodies[i]);
+}
 ```
 ````
 
@@ -195,6 +234,22 @@ function script:_physics_process(api, dt)
         api.log("Collision: " .. e.nodeIdA() .. " hit " .. e.nodeIdB())
     end
 end
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class CollisionScript extends NodeScript {
+    @Override public void onPhysicsProcess(double dt) {
+        var events = core.getCollisionEvents();
+        for (int i = 0; i < events.length; i++) {
+            var e = events[i];
+            core.log("Collision: " + e.nodeIdA() + " hit " + e.nodeIdB());
+            core.log("Contact point: " + e.contactX() + ", " + e.contactY() + ", " + e.contactZ());
+        }
+    }
+}
 ```
 ````
 

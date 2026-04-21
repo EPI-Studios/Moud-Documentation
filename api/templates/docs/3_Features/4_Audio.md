@@ -85,6 +85,18 @@ function script:_ready(api)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class AudioStarter extends NodeScript {
+    @Override public void onReady() {
+        core.set(core.id(), "sound_id", "res://audio/sfx/spawn.ogg");
+        core.set(core.id(), "playing", "true");
+    }
+}
+```
 ````
 
 ### Configuring loops and categories
@@ -131,6 +143,22 @@ function script:_ready(api)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class MusicPlayer extends NodeScript {
+    @Override public void onReady() {
+        long id = core.id();
+        core.set(id, "sound_id", "res://audio/music/theme.ogg");
+        core.set(id, "loop", "true");
+        core.set(id, "category", "music");
+        core.set(id, "volume_db", "-6");
+        core.set(id, "playing", "true");
+    }
+}
+```
 ````
 
 ### Stopping playback
@@ -149,6 +177,11 @@ api.set("playing", "false");
 --- tab: Luau
 ```lua
 api:set("playing", "false")
+```
+
+--- tab: Java
+```java
+core.set(core.id(), "playing", "false");
 ```
 ````
 
@@ -226,6 +259,31 @@ function script:_process(api, dt)
 end
 
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class MusicFader extends NodeScript {
+    private double fadeTimer = 0;
+    private static final double FADE_DURATION = 3.0;
+
+    public void startFade() {
+        this.fadeTimer = FADE_DURATION;
+    }
+
+    @Override public void onProcess(double dt) {
+        if (fadeTimer <= 0) return;
+        fadeTimer = Math.max(0, fadeTimer - dt);
+        double t = fadeTimer / FADE_DURATION;
+        double db = (t - 1) * 40;
+        core.set(core.id(), "volume_db", String.valueOf(db));
+        if (fadeTimer == 0) {
+            core.set(core.id(), "playing", "false");
+        }
+    }
+}
 ```
 ````
 
@@ -315,6 +373,33 @@ function script:_process(api, dt)
 end
 
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+import com.moud.server.minestom.scripting.player.InputEvent;
+
+public final class FootstepPlayer extends NodeScript {
+    private double stepTimer = 0;
+    private static final double STEP_INTERVAL = 0.45;
+
+    @Override public void onProcess(double dt) {
+        InputEvent inp = core.getInput();
+        double mx = inp.getAxis("move_left", "move_right");
+        double mz = inp.getAxis("move_back", "move_forward");
+        boolean moving = Math.abs(mx) > 0.1 || Math.abs(mz) > 0.1;
+        if (!moving) { stepTimer = 0; return; }
+        stepTimer += dt;
+        if (stepTimer >= STEP_INTERVAL) {
+            stepTimer = 0;
+            long id = core.id();
+            core.set(id, "pitch_scale", String.valueOf(0.9 + Math.random() * 0.2));
+            core.set(id, "playing", "false");
+            core.set(id, "playing", "true");
+        }
+    }
+}
 ```
 ````
 
@@ -430,6 +515,42 @@ function script:_process(api, dt)
 end
 
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class MusicCrossfader extends NodeScript {
+    private Long fadingIn = null;
+    private Long fadingOut = null;
+    private double fadeProgress = 0;
+    private static final double FADE_TIME = 2.0;
+
+    public void crossfadeTo(String targetTrack) {
+        long a = core.find("MusicA");
+        long b = core.find("MusicB");
+        core.set(b, "sound_id", targetTrack);
+        core.set(b, "volume_db", "-40");
+        core.set(b, "loop", "true");
+        core.set(b, "playing", "true");
+        fadingIn = b;
+        fadingOut = a;
+        fadeProgress = 0;
+    }
+
+    @Override public void onProcess(double dt) {
+        if (fadingIn == null) return;
+        fadeProgress = Math.min(1, fadeProgress + dt / FADE_TIME);
+        core.set(fadingIn,  "volume_db", String.valueOf(-40 * (1 - fadeProgress)));
+        core.set(fadingOut, "volume_db", String.valueOf(-40 * fadeProgress));
+        if (fadeProgress >= 1) {
+            core.set(fadingOut, "playing", "false");
+            fadingIn = null;
+            fadingOut = null;
+        }
+    }
+}
 ```
 ````
 

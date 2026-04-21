@@ -48,6 +48,22 @@ end
 
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+import com.moud.server.minestom.scripting.player.InputEvent;
+
+public final class InputScript extends NodeScript {
+    @Override public void onInput(InputEvent event) {
+        core.log("Move: " + event.moveX() + ", " + event.moveZ());
+        core.log("Look: yaw=" + event.yawDeg() + " pitch=" + event.pitchDeg());
+        if (event.jump()) {
+            core.log("Jumping!");
+        }
+    }
+}
+```
 ````
 
 ### The `api.input()` Method
@@ -79,6 +95,27 @@ function script:_physics_process(api, dt)
         api.setNumber("z", api.getNumber("z", 0) + dz)
     end
 end
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+import com.moud.server.minestom.scripting.player.InputEvent;
+
+public final class MoveScript extends NodeScript {
+    private double speed = 5.0;
+
+    @Override public void onPhysicsProcess(double dt) {
+        InputEvent inp = core.input();
+        if (inp != null) {
+            long id = core.id();
+            double dx = inp.moveX() * speed * dt;
+            double dz = inp.moveZ() * speed * dt;
+            core.setNumber(id, "x", core.getNumber(id, "x", 0) + dx);
+            core.setNumber(id, "z", core.getNumber(id, "z", 0) + dz);
+        }
+    }
+}
 ```
 ````
 
@@ -153,6 +190,46 @@ function script:_physics_process(api, dt)
     local move = input.get_vector("move_left", "move_right", "move_forward", "move_back")
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ActionInputScript extends NodeScript {
+    @Override public void onPhysicsProcess(double dt) {
+        var input = core.getInput();
+
+        // Check if an action is currently held
+        if (input.isActionPressed("jump")) {
+            core.log("Jump held");
+        }
+
+        // Check if an action was just pressed this frame
+        if (input.isActionJustPressed("sprint")) {
+            core.log("Started sprinting");
+        }
+
+        // Check if an action was just released
+        if (input.isActionJustReleased("sprint")) {
+            core.log("Stopped sprinting");
+        }
+
+        // Get analog strength (0 to 1)
+        double sprintStrength = input.getActionStrength("sprint");
+
+        // Get look direction
+        double yaw = input.getYaw();
+        double pitch = input.getPitch();
+
+        // Get a single axis from two actions
+        double horizontal = input.getAxis("move_left", "move_right");
+
+        // Get a 2D movement vector from four actions
+        var move = input.getVector("move_left", "move_right", "move_forward", "move_back");
+        // move.x = horizontal, move.y = vertical
+    }
+}
+```
 ````
 
 ### ScriptInputApi Methods
@@ -212,6 +289,27 @@ end
 
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class AreaScript extends NodeScript {
+    @Override public void onEnterTree() {
+        long id = core.id();
+        core.connect(id, "area_entered", id, "_on_enter");
+        core.connect(id, "area_exited", id, "_on_exit");
+    }
+
+    public void onEnter(Object playerUuid) {
+        core.log("Player entered zone: " + playerUuid);
+    }
+
+    public void onExit(Object playerUuid) {
+        core.log("Player left zone: " + playerUuid);
+    }
+}
+```
 ````
 
 ## Raycast-Based Interaction
@@ -256,6 +354,31 @@ function script:_physics_process(api, dt)
         api.log("Hit body " .. hit.bodyId() .. " at " .. hit.distance())
     end
 end
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class RaycastScript extends NodeScript {
+    @Override public void onPhysicsProcess(double dt) {
+        double px = core.playerX();
+        double py = core.playerY() + 1.6;  // eye height
+        double pz = core.playerZ();
+
+        // cast a ray from the player's eye in their look direction
+        double yaw = core.playerYaw() * Math.PI / 180.0;
+        double dx = -Math.sin(yaw);
+        double dz = Math.cos(yaw);
+
+        var hit = core.raycast(px, py, pz, dx, 0, dz, 50);
+        if (hit != null) {
+            core.log("Looking at body " + hit.bodyId() + " at distance " + hit.distance());
+            core.log("Hit position: " + hit.x() + ", " + hit.y() + ", " + hit.z());
+            core.log("Surface normal: " + hit.nx() + ", " + hit.ny() + ", " + hit.nz());
+        }
+    }
+}
 ```
 ````
 

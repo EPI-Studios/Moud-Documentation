@@ -197,4 +197,34 @@ for i = 0, count - 1 do
 end
 api.setInstances(nodeId, data)
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ShaderControl extends NodeScript {
+    @Override public void onReady() {
+        long nodeId = core.id();
+
+        // Set a single uniform value
+        core.setUniform(nodeId, "wind_strength", 0.5);
+
+        // Set a multi-component uniform
+        core.setUniform(nodeId, "player_pos_0", px, py, pz);
+
+        // Set instance data for a MultiMeshInstance3D
+        // 13 floats per instance: px,py,pz, qx,qy,qz,qw, sx,sy,sz, cr,cg,cb
+        int count = 10;
+        double[] data = new double[count * 13];
+        for (int i = 0; i < count; i++) {
+            int base = i * 13;
+            data[base] = x; data[base + 1] = y; data[base + 2] = z;
+            data[base + 3] = 0; data[base + 4] = 0; data[base + 5] = 0; data[base + 6] = 1;
+            data[base + 7] = 1; data[base + 8] = 1; data[base + 9] = 1;
+            data[base + 10] = 1; data[base + 11] = 1; data[base + 12] = 1;
+        }
+        core.setInstances(nodeId, data);
+    }
+}
+```
 ````

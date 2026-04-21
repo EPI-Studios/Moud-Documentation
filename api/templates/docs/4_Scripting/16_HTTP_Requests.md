@@ -168,4 +168,26 @@ end
 
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+import java.util.Map;
+
+public final class Telemetry extends NodeScript {
+    public void onPlayerDeath(Object playerUuidObj, Object causeObj) {
+        String playerUuid = (String) playerUuidObj;
+        String cause = (String) causeObj;
+        String url = "https://analytics.example.com/death";
+        String payload = "{\"uuid\":\"" + playerUuid + "\",\"cause\":\"" + cause + "\"}";
+        Map<String, String> headers = Map.of("Authorization", "Bearer abc123_token");
+
+        core.http().postJson(url, payload, headers, (status, body, resHeaders, err) -> {
+            if (!err.isEmpty()) {
+                log("Telemetry dispatch failed: " + err);
+            }
+        });
+    }
+}
+```
 ````

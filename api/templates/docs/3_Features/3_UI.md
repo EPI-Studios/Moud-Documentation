@@ -214,6 +214,28 @@ end
 
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class UiEvents extends NodeScript {
+    @Override public void onEnterTree() {
+        long btn = core.find("SpawnButton");
+        long slider = core.find("VolumeSlider");
+        core.connect(btn, "pressed", core.id(), "_on_spawn_pressed");
+        core.connect(slider, "value_changed", core.id(), "_on_volume_changed");
+    }
+
+    public void onSpawnPressed() {
+        core.log("Spawn button clicked!");
+    }
+
+    public void onVolumeChanged(Object value) {
+        core.log("Volume: " + value);
+    }
+}
+```
 ````
 
 ## Updating UI from Scripts
@@ -243,6 +265,29 @@ api.set(label, "color_b", "0");
 api.set(scoreLabel, "text", "Score: " .. tostring(score))
 api.setNumber(healthBar, "value", currentHealth)
 api.set(panel, "visible", "false")
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class UiUpdates extends NodeScript {
+    @Override public void onProcess(double dt) {
+        // Update a label
+        core.set(scoreLabel, "text", "Score: " + score);
+
+        // Update a progress bar
+        core.setNumber(healthBar, "value", currentHealth);
+
+        // Hide an element
+        core.set(panel, "visible", "false");
+
+        // Change text color to red
+        core.set(label, "color_r", "1");
+        core.set(label, "color_g", "0");
+        core.set(label, "color_b", "0");
+    }
+}
 ```
 ````
 

@@ -113,6 +113,42 @@ end
 
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+import com.moud.server.minestom.scripting.player.InputEvent;
+
+public final class MyNode extends NodeScript {
+    // Local state - lives on this script instance
+    private int health = 100;
+    private int speed = 5;
+
+    @Override public void onEnterTree() {
+        // Called when the node is added to the scene tree
+    }
+
+    @Override public void onReady() {
+        // Called after onEnterTree, when the node is fully initialized
+    }
+
+    @Override public void onProcess(double dt) {
+        // Called every frame/tick. dt = seconds since last call.
+    }
+
+    @Override public void onPhysicsProcess(double dt) {
+        // Called at fixed physics timestep
+    }
+
+    @Override public void onInput(InputEvent event) {
+        // Called when player input is received
+    }
+
+    @Override public void onExitTree() {
+        // Called when the node is removed from the scene tree
+    }
+}
+```
 ````
 
 ## Lifecycle Callbacks
@@ -160,6 +196,14 @@ function script:_physics_process(api, dt)
     local x = api.getNumber("x", 0)
     api.setNumber("x", x + 5 * dt)
 end
+```
+
+--- tab: Java
+```java
+@Override public void onPhysicsProcess(double dt) {
+    double x = core.getNumber(core.id(), "x", 0);
+    core.setNumber(core.id(), "x", x + 5 * dt);
+}
 ```
 ````
 
@@ -226,6 +270,22 @@ end
 
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class TrapZone extends NodeScript {
+    @Override public void onEnterTree() {
+        core.connect(core.id(), "area_entered", core.id(), "_on_player_enter");
+    }
+
+    public void onPlayerEnter(Object playerUuid) {
+        core.log("Player entered: " + playerUuid);
+        // teleport via property set or dedicated API
+    }
+}
+```
 ````
 
 ### Custom Signals
@@ -282,6 +342,35 @@ self.api:emit_signal("orb_collected")
 -- In score.luau:
 api.connect(orbNodeId, "orb_collected", api.id(), "_on_orb")
 ```
+
+--- tab: Java
+```java
+// In Collectible.java:
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Collectible extends NodeScript {
+    public void collect() {
+        core.emit_signal("orb_collected");
+        core.free(core.id());
+    }
+}
+
+// In ScoreTracker.java:
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ScoreTracker extends NodeScript {
+    private long orbNodeId;
+
+    @Override public void onReady() {
+        orbNodeId = core.find("Orb");
+        core.connect(orbNodeId, "orb_collected", core.id(), "_on_orb");
+    }
+
+    public void onOrb(Object arg) {
+        // score++
+    }
+}
+```
 ````
 
 Signals can carry up to 3 arguments:
@@ -298,6 +387,12 @@ this.emit("damage_taken", 25, "fire");
 api.emit_signal("damage_taken", 25, "fire");
 // Handler receives: _on_damage_taken(amount, type)
 ```
+
+--- tab: Java
+```java
+core.emit_signal("damage_taken", 25, "fire");
+// Handler receives: public void onDamageTaken(Object amount, Object type) { ... }
+```
 ````
 
 ### Disconnecting Signals
@@ -311,6 +406,11 @@ this.disconnect(sourceId, "area_entered", targetId, "_on_player_enter");
 --- tab: JavaScript
 ```js
 api.disconnect(sourceId, "area_entered", targetId, "_on_player_enter");
+```
+
+--- tab: Java
+```java
+core.disconnect(sourceId, "area_entered", targetId, "_on_player_enter");
 ```
 ````
 
@@ -350,6 +450,19 @@ function script:_ready(api)
     end)
 end
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Spawner extends NodeScript {
+    @Override public void onReady() {
+        core.after(2.0, () -> {
+            core.log("Two seconds have passed!");
+        });
+    }
+}
+```
 ````
 
 ## Tweens
@@ -367,6 +480,13 @@ this.tween({ property: "x", to: 10, duration: 0.5 });
 ```js
 // Slide the node to x=10 over 0.5 seconds
 api.tween(api.id(), "x", 10, 0.5);
+```
+
+--- tab: Java
+```java
+// Slide the node to x=10 over 0.5 seconds via timed set
+double start = core.getNumber(core.id(), "x", 0);
+core.after(0.5, () -> core.setNumber(core.id(), "x", 10));
 ```
 ````
 
@@ -414,6 +534,20 @@ function script:_on_orb()
 end
 
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ScoreTracker extends NodeScript {
+    private int score = 0;
+
+    public void onOrb(Object arg) {
+        score++;
+        core.set(core.id(), "score", Integer.toString(score));
+    }
+}
 ```
 ````
 

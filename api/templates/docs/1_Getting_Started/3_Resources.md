@@ -181,6 +181,29 @@ function script:_ready(api)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class AssetRefs extends NodeScript {
+    @Override public void onReady() {
+        long self = core.id();
+
+        // Set a texture on a MeshInstance3D
+        core.set(self, "texture", "res://textures/hero/idle.png");
+
+        // Reference an audio clip
+        core.set(self, "sound_id", "res://audio/sfx/footstep.ogg");
+
+        // Change the model on a Model3D node
+        core.set(self, "model", "res://models/hero.bbmodel");
+
+        // Apply a material
+        core.set(self, "material", "res://materials/ground.moudmat");
+    }
+}
+```
 ````
 
 ```hint info Property Changes Replicate Immediately

@@ -163,6 +163,30 @@ function script:_ready(api)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class TreeNavigator extends NodeScript {
+    @Override public void onReady() {
+        // Find a child by relative path from this node
+        long camera = core.find("Camera");            // immediate child named "Camera"
+        long child  = core.find("Level/Floor");       // path: Level -> Floor
+
+        // Get the direct children of a node
+        long[] children = core.getChildren(core.id());
+
+        // Check if a node still exists
+        if (core.exists(camera)) {
+            core.set(camera, "visible", "true");
+        }
+
+        // Get the scene root node ID
+        long rootId = core.rootId();
+    }
+}
+```
 ````
 
 ### Reading and Writing Properties
@@ -240,6 +264,32 @@ function script:_ready(api)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class PropertyExample extends NodeScript {
+    @Override public void onReady() {
+        // Write a property (always a string)
+        core.set(core.id(), "x", "10.5");
+        core.set(core.id(), "visible", "true");
+        core.set(core.id(), "texture", "res://textures/hero.png");
+
+        // Write on a different node
+        long otherNodeId = core.find("OtherNode");
+        core.set(otherNodeId, "color_tint_r", "1.0");
+
+        // Read a property
+        String name = core.getString(core.id(), "name", null);
+        double x = core.getNumber(core.id(), "x", 0);
+
+        // Read on a different node
+        long barId = core.find("HUD/HealthBar");
+        double h = core.getNumber(barId, "value", 100);
+    }
+}
+```
 ````
 
 ---
@@ -302,6 +352,25 @@ function script:_ready(api)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class CubeSpawner extends NodeScript {
+    @Override public void onReady() {
+        // Signature: createRuntime(parentId, name, typeId) -> nodeId
+        long cube = core.createRuntime(0, "FallingCube", "RigidBody3D");
+        core.set(cube, "x", "10");
+        core.set(cube, "y", "20");
+        core.set(cube, "shape", "box");
+        core.set(cube, "mass", "2.0");
+        core.set(cube, "sx", "1");
+        core.set(cube, "sy", "1");
+        core.set(cube, "sz", "1");
+    }
+}
+```
 ````
 
 Remove a node (and all its children) with `api.free()`:
@@ -320,6 +389,11 @@ api.free(cube);
 --- tab: Luau
 ```lua
 api.free(cube)
+```
+
+--- tab: Java
+```java
+core.free(cube);
 ```
 ````
 
@@ -372,6 +446,20 @@ function script:_ready(api)
   api.set(roomId, "z", "-20")
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class RoomLoader extends NodeScript {
+    @Override public void onReady() {
+        // Instantiate the "treasure_room" scene as a child of the root
+        long roomId = core.instantiate("treasure_room", 0);
+        core.set(roomId, "x", "50");
+        core.set(roomId, "z", "-20");
+    }
+}
 ```
 ````
 
@@ -489,6 +577,39 @@ function script:_on_area_entered(playerUuid)
   -- Signal handler
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ScriptTemplate extends NodeScript {
+    private double spawnX = 0;
+    private double spawnZ = 0;
+
+    @Override public void onEnterTree() {
+        // Called once when this node enters the scene tree
+    }
+
+    @Override public void onReady() {
+        // Called once after the full scene tree is built
+        spawnX = core.getNumber(core.id(), "x", 0);
+        spawnZ = core.getNumber(core.id(), "z", 0);
+        core.connect(core.id(), "area_entered", core.id(), "_on_area_entered");
+    }
+
+    @Override public void onProcess(double dt) {
+        // Called every 50 ms while play mode is active
+    }
+
+    @Override public void onExitTree() {
+        // Called just before this node is removed
+    }
+
+    public void onAreaEntered(Object playerUuid) {
+        // Custom signal handler
+    }
+}
 ```
 ````
 

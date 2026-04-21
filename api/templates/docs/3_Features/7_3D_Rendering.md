@@ -94,6 +94,22 @@ function script:_ready(api)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class MeshExample extends NodeScript {
+    @Override public void onReady() {
+        long id = core.id();
+        core.set(id, "mesh", "cube");
+        core.set(id, "texture", "moud:dynamic/white");
+        core.set(id, "color_tint_r", "1.0");
+        core.set(id, "color_tint_g", "0.1");
+        core.set(id, "color_tint_b", "0.1");
+    }
+}
+```
 ````
 
 #### Viewmodel mode
@@ -238,6 +254,32 @@ function script:_ready(api)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class GrassField extends NodeScript {
+    @Override public void onReady() {
+        int count = 1000;
+        float[] data = new float[count * 13];
+        for (int i = 0; i < count; i++) {
+            int base = i * 13;
+            data[base]     = (float) ((Math.random() - 0.5) * 50);
+            data[base + 1] = 0;
+            data[base + 2] = (float) ((Math.random() - 0.5) * 50);
+            data[base + 3] = 0; data[base + 4] = 0;
+            data[base + 5] = 0; data[base + 6] = 1;
+            float h = (float) (0.5 + Math.random() * 0.5);
+            data[base + 7] = 0.3f; data[base + 8] = h; data[base + 9] = 0.3f;
+            data[base + 10] = (float) (0.2 + Math.random() * 0.1);
+            data[base + 11] = (float) (0.6 + Math.random() * 0.2);
+            data[base + 12] = 0.1f;
+        }
+        core.setInstances(core.id(), data);
+    }
+}
+```
 ````
 
 ```hint tip Optimization
@@ -373,6 +415,22 @@ function script:_process(api, dt)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+import com.moud.server.minestom.scripting.player.InputEvent;
+
+public final class AnimatedModel extends NodeScript {
+    @Override public void onProcess(double dt) {
+        InputEvent inp = core.getInput();
+        double moveX = inp.getAxis("move_left", "move_right");
+        double moveZ = inp.getAxis("move_back", "move_forward");
+        boolean moving = Math.abs(moveX) > 0.1 || Math.abs(moveZ) > 0.1;
+        core.set(core.id(), "animation", moving ? "walk" : "idle");
+    }
+}
+```
 ````
 
 ---
@@ -506,6 +564,23 @@ function script:_process(api, dt)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class WaterShader extends NodeScript {
+    private double time = 0;
+
+    @Override public void onProcess(double dt) {
+        time += dt;
+        long id = core.id();
+        core.setUniform(id, "u_time", time);
+        core.setUniform(id, "u_wave_height", 0.3);
+        core.setUniform(id, "u_wave_speed", 1.5);
+    }
+}
+```
 ````
 
 ```hint warning Uniform replication
@@ -611,5 +686,23 @@ function script:_process(api, dt)
   api:set("visible", dist < 50 and "true" or "false")
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class DistanceCull extends NodeScript {
+    private double playerX = 0;
+    private double playerZ = 0;
+
+    @Override public void onProcess(double dt) {
+        long id = core.id();
+        double dx = core.getNumber(id, "x", 0) - playerX;
+        double dz = core.getNumber(id, "z", 0) - playerZ;
+        double dist = Math.sqrt(dx * dx + dz * dz);
+        core.set(id, "visible", dist < 50 ? "true" : "false");
+    }
+}
 ```
 ````

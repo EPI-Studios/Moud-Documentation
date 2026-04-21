@@ -178,6 +178,31 @@ end
 
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class LightingController extends NodeScript {
+    @Override public void onReady() {
+        long sun = core.find("Sun");
+        core.set(sun, "brightness", "0.2");
+        core.set(sun, "color_r", "1");
+        core.set(sun, "color_g", "0.2");
+        core.set(sun, "color_b", "0.1");
+    }
+
+    @Override public void onProcess(double dt) {
+        long[] envs = core.findNodesByType("WorldEnvironment");
+        if (envs.length > 0) {
+            long env = envs[0];
+            double ticks = core.getNumber(env, "time_ticks", 6000) + dt * 100;
+            if (ticks > 24000) ticks -= 24000;
+            core.setNumber(env, "time_ticks", ticks);
+        }
+    }
+}
+```
 ````
 ## Shadow Casting
 

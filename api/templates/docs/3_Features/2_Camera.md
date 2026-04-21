@@ -44,6 +44,18 @@ function script:_process(api, dt)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class FollowCameraScript extends NodeScript {
+    @Override public void onProcess(double dt) {
+        // Arguments: localX, localY, localZ, pitchDeg, rollDeg
+        core.setFollowCamera(0.75, 2.4, -5.5, -12, 0);
+    }
+}
+```
 ````
 
 | Parameter | Description |
@@ -89,6 +101,18 @@ function script:_process(api, dt)
   api:camera():scriptable(0, 70, -10, 0, -15, 0)
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ScriptableCameraScript extends NodeScript {
+    @Override public void onProcess(double dt) {
+        // Arguments: x, y, z, yawDeg, pitchDeg, rollDeg
+        core.setScriptCamera(0, 70, -10, 0, -15, 0);
+    }
+}
 ```
 ````
 
@@ -138,6 +162,19 @@ function script:_ready(api)
 end
 return script
 ```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class SceneCameraScript extends NodeScript {
+    @Override public void onReady() {
+        // Pass the nodeId of a Camera3D node
+        long camId = core.find("CinematicCam");
+        core.setActiveCamera(camId);
+    }
+}
+```
 ````
 
 ### Reset
@@ -174,6 +211,17 @@ function script:_ready(api)
   api:camera():reset()
 end
 return script
+```
+
+--- tab: Java
+```java
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class ResetCameraScript extends NodeScript {
+    @Override public void onReady() {
+        core.resetCamera();
+    }
+}
 ```
 ````
 
