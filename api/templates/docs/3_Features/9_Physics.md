@@ -15,6 +15,7 @@ Implications:
 - Dynamic `RigidBody3D` instances are **visual-only on clients** — their poses arrive in server snapshots and the interpolator drives kinematic mirrors that the player capsule can sweep against. The server is the source of truth for any pushable crate, projectile, or ragdoll.
 - Custom `CharacterBody3D` nodes that you script (see [Physics API > Character bodies](/4_Scripting/06_Physics#character-bodies)) run on the server through Rapier's kinematic character controller (autostep up to half a block, slope handling at ~46°, ground-snap within half a block) and sync to clients normally.
 - Tick rates differ: server Rapier ticks at the configured fixed step (20 Hz by default), the client static world is queried per render frame. The client is deterministic against the server's collision state because it loads the same baked geometry over the wire.
+- Replicated transforms (server-driven node positions, rotations, scales) are smoothed on the client by default. See [Motion Smoothing](/3_Features/16_Motion_Smoothing) for per-node `@interp_mode` / `@interp_lag_ms` overrides, the tween primitive, and the visual offset registry for cosmetic-only animation.
 ```
 
 
