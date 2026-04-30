@@ -310,6 +310,8 @@ public final class Lobby extends NodeScript {
 
 Teleports a player to a world position. Optionally sets their look direction.
 
+> **Note on velocity APIs.** `api:player():playerSetVelocity(uuid, vx, vy, vz)` and `playerAddVelocity` are exposed on `PlayerApi`, but the client motion controller **ignores server-replicated velocity when the player is locally controlling a `CharacterBody3D`** (`ClientPlayerMotionController.isClientCharacterBodyActive()` returns true). In that mode, write velocity to the bound `CharacterBody3D` node from the server (or call `api:physics():setCharacterVelocity(nodeId, ...)`) instead , see [Physics API → Character bodies](06_Physics.md#character-bodies). For free-camera or spectator players who are not bound to a `CharacterBody3D`, `playerSetVelocity` works normally.
+
 ````tabs
 --- tab: TypeScript
 ```typescript

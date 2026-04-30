@@ -13,6 +13,7 @@ All methods require a target node identifier (`nodeId`). Scripts attached direct
 | Method | Description |
 |---|---|
 | `emit(nodeId: long, count: int)` | Spawns the specified number of particles immediately. This operation respects the node's active `max_particles` limit. |
+| `emitAt(nodeId: long, x: float, y: float, z: float, count: int)` | Spawns `count` particles at an absolute world coordinate without translating the emitter or invoking `moveTo`. The emitter's transform remains untouched, so this is the preferred call for one-shot effects (impacts, pickups, hit sparks) that should not move the source node. |
 | `burst(nodeId: long)` | Executes a single emission burst. The quantity evaluates to the node's `burst_count` property, or falls back to the `rate` property if undefined. |
 | `restart(nodeId: long)` | Clears all active particles, resets the internal random number generator, and restarts emission. Utilized to re-trigger `one_shot` configurations. |
 | `setEmitting(nodeId: long, emitting: boolean)` | Overrides the active emission state of the node without modifying the underlying scene graph property. |

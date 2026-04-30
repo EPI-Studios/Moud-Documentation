@@ -60,13 +60,22 @@ Each node has exactly these fields:
 | `type` | string | The node type - determines what properties it has and how it behaves |
 | `properties` | object | String key-value pairs for all configuration |
 
-```hint warning All Property Values Are Strings
-**All property values are strings.** Even numbers and booleans:
+```hint warning All Property Values Are Strings on the Wire
+**At the storage and replication layer, every property value is a string.** Numbers, booleans, and even structured values are all serialized text:
 - Position: `"x": "10.5"` not `"x": 10.5`
 - Boolean: `"visible": "true"` not `"visible": true`
 - Integer: `"collision_layer": "1"` not `"collision_layer": 1`
 
-The scripting API provides `api.getNumber()` as a convenience, but the underlying storage is always a string.
+This is what scene files (`.moud.scene`) store, and it is what the network protocol carries between server and client.
+
+**The scripting APIs hide this for you.** Use the typed methods whenever they exist:
+
+- `api:set(nodeId, "x", "10.5")` writes the raw string value.
+- `api:setNumber(nodeId, "x", 10.5)` accepts a `number` and serializes it for you.
+- `api:getNumber(nodeId, "x", 0.0)` reads the property and parses it back to a `number`, with a default if missing or unparseable.
+- TypeScript decorators like `@property health = 100` accept native types directly and the codegen handles conversion.
+
+The string-only rule applies when you are authoring `.moud.scene` JSON by hand, calling the raw `api:set` / `api:get`, or building messages over the wire. As soon as you go through `setNumber`, `setBool`, the TypeScript decorators, or the `node.x` / `node.position` accessors, you operate in native types and never see strings.
 ```
 
 ---

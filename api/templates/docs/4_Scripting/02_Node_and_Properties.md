@@ -6,6 +6,24 @@ Scripts interact with nodes through built-in typed properties, custom `@property
 
 When your script extends a base class, spatial and type-specific properties are available directly on `this`. These are synced with the engine automatically.
 
+```hint warning How TypeScript property access actually works
+The TypeScript surface is built on top of the same `api.set` / `api.getNumber` machinery that JavaScript and Luau use; it is **not** a real reactive object model. A custom transpiler (`TypeScriptTranspiler`) rewrites your TypeScript at compile time:
+
+- A read like `this.position.x` becomes `core.getNumber(core.id(), "x", 0)`.
+- A write like `this.position.x = 5` becomes `core.setNumber(core.id(), "x", 5)`.
+- A `@property` field becomes a typed wrapper that calls `setNumber` / `setBool` / `set` against the underlying string-typed storage.
+- `this.connect`, `this.tween`, `this.findNode`, etc. all desugar to the equivalent `api.*` calls.
+
+This means a few patterns that look idiomatic in TypeScript will break the transpiler or behave unexpectedly:
+
+- Defining custom getters/setters on `this` for built-in keys (`get position() { ... }`) collides with the rewriter and will not behave like vanilla TS.
+- Storing `this.position` in a local variable does not give you a stable handle: `const p = this.position; p.x = 5;` may or may not flush back to the node depending on the rewrite path. Assign through `this.position.x = 5` directly.
+- Property paths that look like nested objects (`this.material.albedo.r`) only work for the dotted shapes the transpiler recognizes; arbitrary nested object literal access on engine state is not supported.
+- Decorators not exported from `moud` (`@enterTree`, `@ready`, `@process`, `@property`, `@signal`, etc.) are unknown to the rewriter and will not wire up lifecycle hooks.
+
+When in doubt, the JavaScript or Luau example shows the actual call the engine sees. If a TS pattern feels too magical, fall back to `core.set` / `core.setNumber` directly; both are valid in the same TS file.
+```
+
 ### Node3D and all 3D types
 
 ````tabs

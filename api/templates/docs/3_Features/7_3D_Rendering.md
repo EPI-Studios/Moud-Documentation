@@ -1,4 +1,4 @@
-**3D Rendering**
+# 3D Rendering
 
 Moud handles 3D rendering through dedicated visual nodes. Client-side rendering is executed via the Veil framework, which interfaces with the native OpenGL render pipeline to draw meshes, materials, and custom shaders.
 
@@ -94,64 +94,7 @@ function script:_ready(api)
 end
 return script
 ```
-
---- tab: Java
-```java
-import com.moud.server.minestom.scripting.java.NodeScript;
-
-public final class MeshExample extends NodeScript {
-    @Override public void onReady() {
-        long id = core.id();
-        core.set(id, "mesh", "cube");
-        core.set(id, "texture", "moud:dynamic/white");
-        core.set(id, "color_tint_r", "1.0");
-        core.set(id, "color_tint_g", "0.1");
-        core.set(id, "color_tint_b", "0.1");
-    }
-}
-```
 ````
-
-#### Viewmodel mode
-
-Setting `viewmodel = true` on a `MeshInstance3D` converts it into a first-person weapon / hand mesh. The node is **excluded from all normal scene passes** and drawn in a dedicated pass after the world, with the depth buffer cleared first — so the viewmodel never clips into walls.
-
-Placement is camera-local: the mesh follows the camera rotation and sits at `(viewmodel_offset_x, viewmodel_offset_y, viewmodel_offset_z)` relative to the eye. Positive X is right, positive Y is up, negative Z is forward (OpenGL / MC convention).
-
-The node's own `x/y/z` are ignored; `rx/ry/rz` are applied as an *extra* rotation on top of the camera frame (useful for script-driven procedural kick). `sx/sy/sz`, `texture`, `color_tint_*`, `opacity` behave normally.
-
-| Property | Default | Description |
-|---|---|---|
-| `viewmodel` | `false` | Enables the viewmodel pass for this mesh. |
-| `viewmodel_offset_x` | `0.25` | Right offset from the eye (camera-local). |
-| `viewmodel_offset_y` | `-0.22` | Down offset (negative = below the crosshair). |
-| `viewmodel_offset_z` | `-0.45` | Forward offset (negative = in front of the camera). |
-| `viewmodel_fov` | `0` | Per-mesh effective FOV. `0` disables the adjustment (inherits game FOV); any non-zero value keeps the weapon at that apparent FOV regardless of user FOV / script-driven FOV kicks. Applied as a uniform scale of `tan(gameFov/2) / tan(viewmodelFov/2)` on the mesh matrix. |
-
-**Example — attach a cube "gun" to the camera:**
-
-```json
-{
-  "name": "Viewmodel",
-  "type": "MeshInstance3D",
-  "properties": {
-    "viewmodel": "true",
-    "viewmodel_offset_x": "0.28",
-    "viewmodel_offset_y": "-0.24",
-    "viewmodel_offset_z": "-0.55",
-    "sx": "0.22", "sy": "0.14", "sz": "0.55",
-    "mesh": "cube",
-    "texture": "moud:dynamic/white",
-    "color_tint_r": "0.12", "color_tint_g": "0.12", "color_tint_b": "0.14"
-  }
-}
-```
-
-Notes:
-
-- The viewmodel renders for **every** local player regardless of which `CharacterBody3D` owns it — if you want the weapon to only show for the owning player, gate visibility from the client script via `visible=false` on non-owners.
-- The base `MeshInstance3D` transform properties (`x/y/z`) are not used for placement; animating them is a no-op in viewmodel mode. Use `viewmodel_offset_*` (now writable from client scripts via `node:writeNumberOf(viewmodelId, "viewmodel_offset_z", ...)`) or `rx/ry/rz` for extra rotation.
-- Collision / raycasting is never performed on viewmodel meshes — they are visual-only.
 
 ---
 
@@ -253,32 +196,6 @@ function script:_ready(api)
   api:setInstances(api:id(), data)
 end
 return script
-```
-
---- tab: Java
-```java
-import com.moud.server.minestom.scripting.java.NodeScript;
-
-public final class GrassField extends NodeScript {
-    @Override public void onReady() {
-        int count = 1000;
-        float[] data = new float[count * 13];
-        for (int i = 0; i < count; i++) {
-            int base = i * 13;
-            data[base]     = (float) ((Math.random() - 0.5) * 50);
-            data[base + 1] = 0;
-            data[base + 2] = (float) ((Math.random() - 0.5) * 50);
-            data[base + 3] = 0; data[base + 4] = 0;
-            data[base + 5] = 0; data[base + 6] = 1;
-            float h = (float) (0.5 + Math.random() * 0.5);
-            data[base + 7] = 0.3f; data[base + 8] = h; data[base + 9] = 0.3f;
-            data[base + 10] = (float) (0.2 + Math.random() * 0.1);
-            data[base + 11] = (float) (0.6 + Math.random() * 0.2);
-            data[base + 12] = 0.1f;
-        }
-        core.setInstances(core.id(), data);
-    }
-}
 ```
 ````
 
@@ -415,22 +332,6 @@ function script:_process(api, dt)
 end
 return script
 ```
-
---- tab: Java
-```java
-import com.moud.server.minestom.scripting.java.NodeScript;
-import com.moud.server.minestom.scripting.player.InputEvent;
-
-public final class AnimatedModel extends NodeScript {
-    @Override public void onProcess(double dt) {
-        InputEvent inp = core.getInput();
-        double moveX = inp.getAxis("move_left", "move_right");
-        double moveZ = inp.getAxis("move_back", "move_forward");
-        boolean moving = Math.abs(moveX) > 0.1 || Math.abs(moveZ) > 0.1;
-        core.set(core.id(), "animation", moving ? "walk" : "idle");
-    }
-}
-```
 ````
 
 ---
@@ -448,10 +349,6 @@ public final class AnimatedModel extends NodeScript {
 | `fps` | float | `8` | Playback evaluation speed (frames per second). |
 | `playing` | bool | `true` | Enables or disables frame iteration. |
 | `loop` | bool | `true` | Restarts iteration at `0` when sequence concludes. |
-
-### Particle3D
-
-CPU-simulated, camera-billboarded particle emitter. See [Particles](/3_Features/10_Particles) for the full feature reference.
 
 ---
 
@@ -564,23 +461,6 @@ function script:_process(api, dt)
 end
 return script
 ```
-
---- tab: Java
-```java
-import com.moud.server.minestom.scripting.java.NodeScript;
-
-public final class WaterShader extends NodeScript {
-    private double time = 0;
-
-    @Override public void onProcess(double dt) {
-        time += dt;
-        long id = core.id();
-        core.setUniform(id, "u_time", time);
-        core.setUniform(id, "u_wave_height", 0.3);
-        core.setUniform(id, "u_wave_speed", 1.5);
-    }
-}
-```
 ````
 
 ```hint warning Uniform replication
@@ -686,23 +566,5 @@ function script:_process(api, dt)
   api:set("visible", dist < 50 and "true" or "false")
 end
 return script
-```
-
---- tab: Java
-```java
-import com.moud.server.minestom.scripting.java.NodeScript;
-
-public final class DistanceCull extends NodeScript {
-    private double playerX = 0;
-    private double playerZ = 0;
-
-    @Override public void onProcess(double dt) {
-        long id = core.id();
-        double dx = core.getNumber(id, "x", 0) - playerX;
-        double dz = core.getNumber(id, "z", 0) - playerZ;
-        double dist = Math.sqrt(dx * dx + dz * dz);
-        core.set(id, "visible", dist < 50 ? "true" : "false");
-    }
-}
 ```
 ````

@@ -777,3 +777,77 @@ public final class ScoreZone extends NodeScript {
 }
 ```
 ````
+
+---
+
+## Character bodies
+
+`CharacterBody3D` exposes a server-side kinematic API via `api:physics()`. It is the script counterpart of the client `BodyApi` in [Client Scripts](10_Client_Scripts.md), but operates inside the authoritative scene tick: position, velocity, and contact state are written into node properties and replicated to clients each frame.
+
+Before calling `moveAndSlide` or `setCharacterVelocity`, the body must be marked script-controlled. `setCharacterScriptControlled(nodeId, true)` flips this flag; the simulator then ignores its built-in input mapping and integrates whatever the script writes. `moveAndSlide` sets the flag implicitly when first invoked.
+
+| Method | Returns | Description |
+|---|---|---|
+| `api:physics():moveAndSlide(nodeId, dt)` | `double[3]` | Integrates the body using its current `velocity_x/y/z`, applies gravity, and slides along surfaces. Returns the post-step velocity vector. |
+| `api:physics():setCharacterScriptControlled(nodeId, controlled)` |  | Toggle script authority. Setting `false` zeroes velocity and returns control to the engine simulator. |
+| `api:physics():setCharacterVelocity(nodeId, vx, vy, vz)` |  | Queue a velocity write. Implicitly enables script-controlled mode. |
+| `api:physics():getCharacterVelocity(nodeId)` | `double[3]` | Reads the current `velocity_x/y/z` triplet. |
+| `api:physics():isOnFloor(nodeId)` | `boolean` | True if the body's last simulation step ended in floor contact. |
+| `api:physics():isOnWall(nodeId)` | `boolean` | True if the body slid against a wall during its last step. |
+| `api:physics():isOnCeiling(nodeId)` | `boolean` | True if the body's last simulation step ended in ceiling contact. |
+| `api:physics():getWallNormal(nodeId)` | `double[3]` | The wall normal recorded during the last `moveAndSlide`, or zero vector if not on a wall. |
+| `api:physics():getInputDirection(nodeId)` | `double[3]` | Movement input vector last submitted by the player. Used to drive custom controllers from upstream input. |
+
+A typical custom controller pattern:
+
+````tabs
+--- tab: Luau
+```lua
+local script = {}
+
+function script:_ready(api)
+    api:physics():setCharacterScriptControlled(api:id(), true)
+end
+
+function script:_process(api, dt)
+    local input = api:physics():getInputDirection(api:id())
+    local v = api:physics():getCharacterVelocity(api:id())
+
+    local speed = 6.0
+    v[1] = input[1] * speed
+    v[3] = input[3] * speed
+
+    if api:physics():isOnFloor(api:id()) and api:input():isPressed("jump") then
+        v[2] = 8.5
+    end
+
+    api:physics():setCharacterVelocity(api:id(), v[1], v[2], v[3])
+    api:physics():moveAndSlide(api:id(), dt)
+end
+
+return script
+```
+
+--- tab: JavaScript
+```js
+({
+  _ready(api) {
+    api.physics().setCharacterScriptControlled(api.id(), true);
+  },
+  _process(api, dt) {
+    const input = api.physics().getInputDirection(api.id());
+    const v = api.physics().getCharacterVelocity(api.id());
+    const speed = 6.0;
+    v[0] = input[0] * speed;
+    v[2] = input[2] * speed;
+    if (api.physics().isOnFloor(api.id()) && api.input().isPressed("jump")) {
+      v[1] = 8.5;
+    }
+    api.physics().setCharacterVelocity(api.id(), v[0], v[1], v[2]);
+    api.physics().moveAndSlide(api.id(), dt);
+  }
+})
+```
+````
+
+> **Caveat: server-side velocity vs client `BodyApi`.** When a `CharacterBody3D` is locally bound to a player and `BodyApi` is actively running on that client, `ClientPlayerMotionController` ignores velocity replicated from the server and trusts the local simulation. Calling `api:player():playerSetVelocity(...)` from a server script in that case will not move the player; instead, write velocity to the bound `CharacterBody3D` node (or call `setCharacterVelocity` here), which the client respects.

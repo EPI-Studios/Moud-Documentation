@@ -1,6 +1,6 @@
 # Configuration
 
-The `project.moud.json` of a Moud poroject is what the server read to know where your game lives.
+The `project.moud.json` of a Moud project is what the server reads to know where your game lives.
 
 ---
 

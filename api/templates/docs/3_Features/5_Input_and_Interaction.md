@@ -403,6 +403,8 @@ public final class RaycastScript extends NodeScript {
 | `api.teleportPlayer(uuid, x, y, z)` | bool | Teleport a player |
 | `api.teleportPlayer(uuid, x, y, z, yaw, pitch)` | bool | Teleport with rotation |
 
+For pitch and free-look queries, use the [client camera API](#client-camera-api) below — pitch lives on the client because the vanilla Minecraft player drives its own look direction and only the yaw component is mirrored to the server.
+
 ### PlayerInfo Fields
 
 | Method | Returns | Description |
@@ -411,6 +413,59 @@ public final class RaycastScript extends NodeScript {
 | `name()` | string | Player display name |
 | `x()`, `y()`, `z()` | double | Position |
 | `ry()` | double | Yaw rotation |
+
+## Client Camera API
+
+Client-side scripts can read and override the local camera and the vanilla player's look direction through `CameraApi`. This is the right surface for FPS controllers, free-look, mouse-capture mini-games, look-at-target cinematics, and any UI that needs to know where the player is looking right now (server queries only see yaw, mirrored once per input tick).
+
+### Reading the camera
+
+```lua
+function script:onFrame(dt)
+    local yaw   = camera:getYaw()           -- camera yaw in degrees
+    local pitch = camera:getPitch()         -- camera pitch in degrees (-89..89)
+    local roll  = camera:getRoll()
+    local fov   = camera:getFov()
+
+    local pyaw   = camera:getPlayerYaw()    -- vanilla player entity yaw
+    local ppitch = camera:getPlayerPitch()  -- vanilla player entity pitch
+end
+```
+
+`getYaw` / `getPitch` reflect the camera Moud is rendering with this frame, including any script overrides. `getPlayerYaw` / `getPlayerPitch` always return the vanilla player entity's look direction, even when the camera has been overridden — useful when you want the camera to follow a cinematic path but still know which way the player is "facing".
+
+### Overriding the camera
+
+```lua
+camera:setPos(x, y, z)            -- world-space camera position
+camera:setYaw(deg)
+camera:setPitch(deg)              -- clamped to [-89, 89]
+camera:setRoll(deg)
+camera:setFov(deg)
+camera:setPlayerYaw(deg)          -- snap the vanilla player entity to a yaw
+```
+
+Setting any of `setPos`/`setYaw`/`setPitch` flips the camera into override mode for the current frame. The next frame Minecraft resumes its default behavior unless you keep writing.
+
+### Mouse capture
+
+```lua
+camera:captureMouse(true)         -- hide cursor, accumulate raw deltas
+local d = camera:getMouseDelta()  -- {dx, dy} in pixels since last frame
+camera:captureMouse(false)        -- release cursor back to vanilla
+```
+
+When mouse capture is on, Moud suppresses vanilla camera movement and feeds you the raw deltas. Use this for first-person controllers that need uninterrupted relative-mouse input (e.g. flight sticks, vehicle turrets, custom cameras).
+
+### Look-target helpers
+
+```lua
+camera:setLookTarget(x, y, z, strength, maxAngleDeg)  -- soft pull toward point
+camera:setLookTargetHard(x, y, z)                     -- snap directly at point
+camera:clearLookTarget()
+```
+
+`setLookTarget` blends the camera toward a world point at the given strength (0..1) but never rotates more than `maxAngleDeg` per frame — good for "glance toward" effects. `setLookTargetHard` snaps every frame as long as it's set.
 
 ## Input Actions (InputMap)
 
@@ -454,8 +509,8 @@ input:resetAllBindings()                         -- restore all defaults
 
 `type:code` where `type` is `key`, `mouse`, or `gamepad`:
 
-- `key:<glfw_keycode>` — e.g. `key:32` for Space, `key:69` for E
-- `mouse:<button>` — 0 = left, 1 = right, 2 = middle
-- `gamepad:<button>` — GLFW gamepad button index (0 = A/Cross, 1 = B/Circle, ...)
+- `key:<glfw_keycode>` - e.g. `key:32` for Space, `key:69` for E
+- `mouse:<button>` - 0 = left, 1 = right, 2 = middle
+- `gamepad:<button>` - GLFW gamepad button index (0 = A/Cross, 1 = B/Circle, ...)
 
 Bindings persist to `moud-bindings.json` automatically on every call to `setBinding`, `addBinding`, `resetBindings`, or `resetAllBindings`.

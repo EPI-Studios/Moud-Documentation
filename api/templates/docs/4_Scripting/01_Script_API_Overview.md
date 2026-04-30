@@ -10,6 +10,56 @@ The engine supports four scripting environments:
 
 ---
 
+## What is `api`?
+
+In every JavaScript and Luau example you will see a parameter named `api`. It is the live handle that the engine passes into your script's lifecycle callbacks (`_ready`, `_process`, `_input`, etc.). It exposes:
+
+- Direct getters/setters on the current node and others (`api:set`, `api:setNumber`, `api:get`, `api:find`).
+- Sub-modules grouping related calls: `api:server()`, `api:physics()`, `api:player()`, `api:mesh()`, `api:msg()`, `api:persist()`, `api:http()`, etc. Each returns a stable handle that you can also cache.
+- The node's own identity: `api:id()` returns the node id of the script's host node.
+- Helpers for connecting signals, instantiating subscenes, queueing scene transitions, and logging.
+
+The same object is passed every time, so a typical script saves it on first use and references it from later callbacks:
+
+````tabs
+--- tab: JavaScript
+```js
+({
+  _enter_tree(api) {
+    this.api = api;
+  },
+  _process(api, dt) {
+    // `api` is also passed here; either the parameter or `this.api` is fine.
+    this.api.set(this.api.id(), "color_tint_r", "1.0");
+  }
+})
+```
+
+--- tab: Luau
+```lua
+local script = {}
+
+function script:_enter_tree(api)
+    self.api = api
+end
+
+function script:_process(api, dt)
+    -- `api` is also passed here; either the parameter or `self.api` is fine.
+    self.api:set(self.api:id(), "color_tint_r", "1.0")
+end
+
+return script
+```
+````
+
+In **TypeScript**, the same handle is exposed through the `this` context of your `Node3D` (or other base) subclass; you call `this.findNode(...)`, `this.set(...)`, etc. without a separate `api` reference. The TypeScript codegen is responsible for routing those calls to the same underlying methods that `api` exposes in the dynamic languages.
+
+In **Java**, the handle is injected as a `protected` field named `core` on `NodeScript`. Every example that says `core.set(...)` or `core.id()` is using the Java equivalent of `api.*` from JS/Luau.
+
+When a callback fires *outside* a lifecycle hook (a callback you registered earlier, an HTTP completion, a timer), use the saved `this.api` / `self.api` rather than expecting a parameter. The engine never re-injects `api` on those callbacks.
+
+---
+
 ## Script structure
 
 The following examples demonstrate the baseline syntax for local state declaration, lifecycle callback execution, and signal handler connection.
@@ -351,3 +401,94 @@ core.set("health", "100");
 core.after(0.5, () -> core.emit_signal("damaged", 10));
 core.tween(core.id(), "position.x", 10.0, 1.0);
 ```
+
+---
+
+## Math globals
+
+The runtime shim exposes a small set of common math helpers as globals in JavaScript and Luau, and as named imports from `moud/math` in TypeScript. Use them instead of rolling your own; they are deterministic where applicable and avoid `Math.random()` pitfalls in deterministic generators.
+
+| Symbol | Signature | Description |
+|---|---|---|
+| `lerp` | `lerp(a: number, b: number, t: number): number` | Linear interpolation. `t = 0` returns `a`, `t = 1` returns `b`. Not clamped, useful for extrapolation if you allow `t` outside `[0, 1]`. |
+| `clamp` | `clamp(v: number, min: number, max: number): number` | Restricts `v` to the inclusive range `[min, max]`. |
+| `randf` | `randf(min: number, max: number): number` | Uniform float in `[min, max)`. |
+| `randi` | `randi(min: number, max: number): number` | Uniform integer in `[min, max]` (both inclusive). |
+
+`Vec3` is also globally available with the static helpers `Vec3.dot`, `Vec3.distance`, `Vec3.forward(yawDeg)`, `Vec3.up()`, `Vec3.right()`, `Vec3.down()`.
+
+In TypeScript the same helpers are imported explicitly:
+
+```typescript
+import { lerp, clamp, randf, randi } from "moud/math";
+```
+
+In JavaScript and Luau, the same names are available without an import:
+
+```js
+var t = clamp(elapsed / duration, 0, 1);
+var damage = randi(5, 12);
+this.api.set(this.api.id(), "color_tint_r", String(lerp(0, 1, t)));
+```
+
+```lua
+local t = clamp(elapsed / duration, 0, 1)
+local damage = randi(5, 12)
+api:setNumber(api:id(), "color_tint_r", lerp(0, 1, t))
+```
+
+Java scripts use the equivalent `core.lerp / core.clamp / core.randf / core.randi` (or call into the standard `Math` class for portability) from inside `NodeScript`.
+
+---
+
+## Java scripting workflow
+
+Java scripts compile in-process the first time they are loaded by `JavaRuntimeBridge`. There is no separate build step; you drop a `.java` file into your project's `scripts/` directory and the engine compiles it on demand. The compiler requires a JDK (not a JRE) at the runtime classpath; verify with `javac --version`.
+
+### File layout
+
+| Concern | Rule |
+|---|---|
+| **Location** | Anywhere under your project's `scripts/` directory. The engine recursively scans this folder. |
+| **One public class per file** | The compiler reads the first `public class <Name>` it finds in the source. The class name does **not** have to match the filename, but matching it (Java convention) keeps your IDE happy. |
+| **Package declaration** | **Optional.** If you omit it, the class lives in the default package. If you include one, the package must not collide with the engine's own packages (`com.moud.*`, `net.minestom.*`, `org.graalvm.*`); those are reserved for engine code and the package allowlist sandbox will reject scripts that try to write inside them. A short, unique package like `mygame.gameplay` is the recommended pattern for non-trivial projects. |
+| **Multiple files** | Allowed. Each `.java` file is compiled independently against the engine classpath plus other already-loaded scripts. Cross-file references work as long as both files declare the same package. |
+| **Inner classes** | Permitted within a single file (`public class Foo { static class Bar { ... } }`). Each script class still needs to extend `NodeScript`. |
+| **Main class detection** | If the source contains no `public class` declaration, the bridge falls back to using the file name (without extension) as the class name. |
+
+### Required base class
+
+Every script attached to a node must extend `com.moud.server.minestom.scripting.java.NodeScript`. The base class injects the API modules as `protected` fields (most commonly `core`, the equivalent of `api` in JS/Luau) and provides overridable lifecycle methods.
+
+### Compilation lifecycle
+
+1. The engine watches a node's `script` property. When it changes (or on initial load), the file is read.
+2. `JavaCompiler` compiles the source into bytecode in memory, including any sibling classes referenced from the same file or scripts loaded earlier.
+3. The bytecode is loaded into an isolated `ClassLoader` constrained by the package allowlist. The script class is instantiated and bound to the node.
+4. Edits to the source recompile on next load. Hot-reload re-instantiates the class against the same node.
+
+### Sandbox
+
+The script `ClassLoader` denies access to packages outside the allowlist. Standard JDK APIs (`java.util`, `java.lang`, `java.time`, `java.util.concurrent`, etc.) are permitted; reflection into engine internals or arbitrary `sun.*` packages is not. If you need an engine API, use the `core` field; if a JDK feature you need is denied by the sandbox, file an engine ticket rather than working around it.
+
+### Minimal example
+
+```java
+// scripts/mygame/gameplay/Mover.java
+package mygame.gameplay;
+
+import com.moud.server.minestom.scripting.java.NodeScript;
+
+public final class Mover extends NodeScript {
+    private double t = 0.0;
+
+    @Override
+    public void onProcess(double dt) {
+        t += dt;
+        core.setNumber(core.id(), "x", Math.sin(t) * 5.0);
+    }
+}
+```
+
+Attach the node's `script` property to `res://scripts/mygame/gameplay/Mover.java` and the engine compiles, loads, and ticks it. Edit, save, and the next tick reloads the new bytecode.
+

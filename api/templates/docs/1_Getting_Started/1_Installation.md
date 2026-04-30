@@ -20,7 +20,7 @@ This guide walks you through installing every component, verifying the setup, an
 | OS | Windows 10, Linux | Linux (because less slop) |
 
 ```hint warning Java version matters
-**Luau** scripting requires Java 25 (GraalVM 25+). If you only Run `java -version` to check what you have.
+**Luau** scripting requires Java 25 (GraalVM 25+). Run `java -version` to check what you have; if it reports anything older than 25, the Luau runtime will refuse to load and your `.luau` scripts will silently disable.
 ```
 
 ```hint info macOS support
@@ -130,22 +130,20 @@ If empty, set it and try again.
 
 ### Server won't start - "Port 25565 already in use"
 
-Another process is using the default Minecraft port. Options:
-- Stop the conflicting process (`lsof -i :25565` on Linux to find it)
-- Or configure Moud to use a different port in your project config
+Another process is using the default Minecraft port. The Moud server currently binds `0.0.0.0:25565` unconditionally , there is no port override in `project.moud.json`. Resolve the conflict by stopping the other process (`lsof -i :25565` on Linux to find it) before launching Moud. A configurable port is on the roadmap.
 
 ### Java version error - "UnsupportedClassVersionError"
 
-Your Java is too old. Moud requires Java 21+. Install it:
+Your Java is too old. Moud requires Java 25 (GraalVM 25+). Older Java versions can launch the engine but the Luau script runtime self-disables when it detects `javaVersion < 25`, so any Luau script in your project will fail to load. Install a current JDK:
 
 ```bash
 # Ubuntu / Debian
-sudo apt install openjdk-21-jdk
+sudo apt install openjdk-25-jdk
 
 # Arch Linux
-sudo pacman -S jdk21-openjdk
+sudo pacman -S jdk-openjdk
 
-# Windows - download from https://adoptium.net/
+# Windows / macOS - download from https://adoptium.net/ or https://www.graalvm.org/
 ```
 
 Then verify: `java -version`

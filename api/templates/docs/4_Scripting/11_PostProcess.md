@@ -8,12 +8,14 @@ The `PostProcess` global interface allows client scripts to register and evaluat
 
 ### Registration methods
 
+> **Stage limitation.** All script-registered post-process effects run at the `WORLD` stage (after the 3D render, before UI compositing). The `SCREEN` stage exposed on the `PostProcess` node in the editor is not currently reachable from script , `PostProcessApi.registerShader` and `registerInline` hard-code `PostProcessStage.WORLD`. To author a screen-stage effect, attach it via a `PostProcess` node in the scene rather than registering from a script.
+
 | Method | Description |
 |---|---|
-| `register(id: string, fragSrc: string)` | Registers an inline fragment shader string with a default priority of `0`. |
-| `registerPriority(id: string, fragSrc: string, priority: int)` | Registers an inline fragment shader string with an explicit execution priority integer. |
-| `registerShader(id: string, shaderPath: string)` | Registers a compiled `.moudshader` asset path. |
-| `registerShaderPriority(id: string, shaderPath: string, priority: int)` | Registers a compiled `.moudshader` asset with an explicit execution priority integer. |
+| `register(id: string, fragSrc: string)` | Registers an inline fragment shader string with a default priority of `0`. Runs at the `WORLD` stage. |
+| `registerPriority(id: string, fragSrc: string, priority: int)` | Registers an inline fragment shader string with an explicit execution priority integer. Runs at the `WORLD` stage. |
+| `registerShader(id: string, shaderPath: string)` | Registers a compiled `.moudshader` asset path. Runs at the `WORLD` stage. |
+| `registerShaderPriority(id: string, shaderPath: string, priority: int)` | Registers a compiled `.moudshader` asset with an explicit execution priority integer. Runs at the `WORLD` stage. |
 | `unregister(id: string)` | Deallocates the specified effect from the active render pipeline. |
 | `has(id: string)` | Evaluates to `true` if an effect with the specified identifier is actively registered. |
 

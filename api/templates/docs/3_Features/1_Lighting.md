@@ -1,141 +1,129 @@
-# Lighting System
+# Light and Environment Nodes
 
-Moud provides three types of light nodes and a global environment system for controlling the overall mood of your scene.
+The lighting system relies on three dedicated light nodes and the `WorldEnvironment` node to illuminate the 3D scene. The rendering pipeline evaluates directional, point, and spot lights alongside global atmospheric properties to calculate scene illumination.
 
-## Light Types
+---
+
+## Light classes
 
 ### DirectionalLight3D
 
-A sun-like light that illuminates the entire scene from one direction. The light rays are parallel, so position doesn't matter - only rotation.
+`DirectionalLight3D` emits parallel light rays across the entire scene. Its positional transform is ignored by the renderer; only its rotational transform affects the illumination direction. 
 
-```json
-{
-  "type": "DirectionalLight3D",
-  "properties": {
-    "rx": "120",
-    "ry": "45",
-    "brightness": "0.5",
-    "enabled": "true",
-    "color_r": "1",
-    "color_g": "0.95",
-    "color_b": "0.85"
-  }
-}
-```
-
-Use `rx` and `ry` to control the light angle.
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `rx`, `ry`, `rz` | float | `0` | Euler rotation determining the light's directional vector. |
+| `brightness` | float | `1.0` | Global intensity multiplier. |
+| `color_r/g/b` | float | `1.0` | Light color multiplier per channel (0–1). |
+| `enabled` | bool | `true` | Determines whether the light executes in the render pass. |
 
 ### OmniLight3D
 
-A point light that emits in all directions from its position. 
+`OmniLight3D` represents a point light source that emits light omnidirectionally from its specific spatial coordinate.
 
-```json
-{
-  "type": "OmniLight3D",
-  "properties": {
-    "x": "5",
-    "y": "3",
-    "z": "0",
-    "radius": "10",
-    "brightness": "0.8",
-    "color_r": "1",
-    "color_g": "0.7",
-    "color_b": "0.3"
-  }
-}
-```
-
-| Property | Type | Description |
-|---|---|---|
-| `radius` | float | How far the light reaches |
-| `brightness` | float | Light intensity |
-| `color_r/g/b` | float | Light color (0–1 per channel) |
-| `enabled` | bool | Turn light on/off |
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `x`, `y`, `z` | float | `0` | Absolute world-space coordinate of the light origin. |
+| `radius` | float | `10.0` | The maximum distance the illumination reaches before attenuating to zero. |
+| `brightness` | float | `1.0` | Core intensity multiplier. |
+| `color_r/g/b` | float | `1.0` | Light color multiplier per channel (0–1). |
+| `enabled` | bool | `true` | Determines whether the light executes in the render pass. |
 
 ### SpotLight3D
 
-A cone-shaped light.
+`SpotLight3D` emits a directional cone of light from its spatial coordinate along its local Z-axis.
 
-```json
-{
-  "type": "SpotLight3D",
-  "properties": {
-    "x": "0",
-    "y": "10",
-    "z": "0",
-    "rx": "90",
-    "angle": "30",
-    "distance": "20",
-    "brightness": "1",
-    "color_r": "1",
-    "color_g": "1",
-    "color_b": "1"
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `angle` | float | `45.0` | The total angle of the light cone in degrees. |
+| `distance` | float | `20.0` | The maximum forward distance the illumination reaches. |
+| `brightness` | float | `1.0` | Core intensity multiplier. |
+| `color_r/g/b` | float | `1.0` | Light color multiplier per channel (0–1). |
+| `cast_shadows` | bool | `false` | Enables depth-map shadow rendering. |
+
+---
+
+## WorldEnvironment
+
+The `WorldEnvironment` node dictates scene-wide atmospheric and lighting parameters. Each scene graph evaluates a single `WorldEnvironment` node.
+
+### Sky
+
+| Property | Type | Description |
+|---|---|---|
+| `sky_mode` | string | Defines the sky rendering model (`"vanilla"` or `"custom"`). |
+| `sky_shader` | string | Asset path to a custom sky `.moudshader` file. |
+| `sky_material` | string | Asset path to a `.moudmat` sky material. |
+| `sky_color_top_r/g/b` | float | Zenith gradient color coordinates. |
+| `sky_color_horizon_r/g/b` | float | Horizon gradient color coordinates. |
+| `sky_color_sunrise_r/g/b` | float | Sunrise/sunset atmospheric tint. |
+| `sky_color_sunrise_strength` | float | Multiplier for the sunrise tint intensity. |
+
+### Time and Atmosphere
+
+| Property | Type | Description |
+|---|---|---|
+| `time_enabled` | bool | If `true`, the engine automatically advances the `time_ticks` property. |
+| `time_ticks` | float | Current time of day evaluated in Minecraft ticks (0–24000). Noon evaluates to `6000`. |
+| `ambient_light` | float | Global illumination baseline intensity (0–1). |
+| `weather` | string | Active weather preset configuration (e.g., `"clear"`). |
+
+### Fog
+
+| Property | Type | Description |
+|---|---|---|
+| `fog_enabled` | bool | Enables depth-based distance fog rendering. |
+| `fog_density` | float | Exponential fog thickness scalar (`0.01` evaluates as thin, `0.1` evaluates as opaque). |
+| `fog_color_r/g/b` | float | Fog rendering color. |
+
+### Clouds
+
+| Property | Type | Description |
+|---|---|---|
+| `cloud_height` | float | World Y-coordinate for the primary cloud plane. |
+| `cloud_speed` | float | Translation speed scalar for the cloud texture. |
+| `cloud_scale` | float | Texture UV scaling parameter. |
+| `cloud_offset_x/z` | float | Absolute planar offset for cloud rendering. |
+
+---
+
+## Script execution
+
+Light properties and environmental variables are manipulated at runtime via standard node property assignment.
+
+````tabs
+--- tab: TypeScript
+```typescript
+import { Node3D, ready, process } from "moud";
+
+export default class LightingController extends Node3D {
+  @ready()
+  onReady() {
+    const sun = this.find("Sun");
+    this.api.set(sun, "brightness", "0.2");
+    this.api.set(sun, "color_r", "1");
+    this.api.set(sun, "color_g", "0.2");
+    this.api.set(sun, "color_b", "0.1");
+  }
+
+  @process()
+  onProcess(dt: number) {
+    const envs = this.api.findNodesByType("WorldEnvironment");
+    if (envs.length > 0) {
+      const env = envs[0];
+      let ticks = this.api.getNumber(env, "time_ticks", 6000) + dt * 100;
+      if (ticks > 24000) ticks -= 24000;
+      this.api.setNumber(env, "time_ticks", String(ticks));
+    }
   }
 }
 ```
 
-| Property | Type | Description |
-|---|---|---|
-| `angle` | float | Cone angle in degrees |
-| `distance` | float | How far the spotlight reaches |
-
-## WorldEnvironment
-
-The `WorldEnvironment` node controls scene-wide rendering settings. You should have one per scene.
-
-### Sky
-
-| Property | Description |
-|---|---|
-| `sky_mode` | `"vanilla"` or `"custom"` |
-| `sky_shader` | Path to a custom sky shader |
-| `sky_material` | Path to a sky material |
-| `sky_color_top_r/g/b` | Sky zenith color |
-| `sky_color_horizon_r/g/b` | Sky horizon color |
-| `sky_color_sunrise_r/g/b` | Sunrise tint color |
-| `sky_color_sunrise_strength` | Sunrise tint intensity |
-
-### Time
-
-| Property | Description |
-|---|---|
-| `time_enabled` | Enable time progression (`"true"` / `"false"`) |
-| `time_ticks` | Current time of day in Minecraft ticks (0–24000). 6000 = noon. |
-
-### Fog
-
-| Property | Description |
-|---|---|
-| `fog_enabled` | Enable distance fog |
-| `fog_density` | Fog thickness (0.01 = thin, 0.1 = thick) |
-| `fog_color_r/g/b` | Fog color |
-
-### Clouds
-
-| Property | Description |
-|---|---|
-| `cloud_height` | Cloud layer height |
-| `cloud_speed` | Cloud movement speed |
-| `cloud_scale` | Cloud texture scale |
-| `cloud_offset_x/z` | Cloud position offset |
-
-### Ambient
-
-| Property | Description |
-|---|---|
-| `ambient_light` | Ambient light intensity (0–1) |
-| `weather` | Weather preset: `"clear"`, etc. |
-
-## Scripting Lights
-
-You can control lights from scripts just like any other node:
-
-````tabs
 --- tab: JavaScript
 ```js
 ({
   _ready(api) {
-    var sun = api.find("Sun");
+    const sun = api.find("Sun");
     api.set(sun, "brightness", "0.2");
     api.set(sun, "color_r", "1");
     api.set(sun, "color_g", "0.2");
@@ -143,10 +131,10 @@ You can control lights from scripts just like any other node:
   },
 
   _process(api, dt) {
-    var envs = api.findNodesByType("WorldEnvironment");
+    const envs = api.findNodesByType("WorldEnvironment");
     if (envs.length > 0) {
-      var env = envs[0];
-      var ticks = api.getNumber(env, "time_ticks", 6000) + dt * 100;
+      const env = envs[0];
+      let ticks = api.getNumber(env, "time_ticks", 6000) + dt * 100;
       if (ticks > 24000) ticks -= 24000;
       api.setNumber(env, "time_ticks", ticks);
     }
@@ -178,98 +166,51 @@ end
 
 return script
 ```
-
---- tab: Java
-```java
-import com.moud.server.minestom.scripting.java.NodeScript;
-
-public final class LightingController extends NodeScript {
-    @Override public void onReady() {
-        long sun = core.find("Sun");
-        core.set(sun, "brightness", "0.2");
-        core.set(sun, "color_r", "1");
-        core.set(sun, "color_g", "0.2");
-        core.set(sun, "color_b", "0.1");
-    }
-
-    @Override public void onProcess(double dt) {
-        long[] envs = core.findNodesByType("WorldEnvironment");
-        if (envs.length > 0) {
-            long env = envs[0];
-            double ticks = core.getNumber(env, "time_ticks", 6000) + dt * 100;
-            if (ticks > 24000) ticks -= 24000;
-            core.setNumber(env, "time_ticks", ticks);
-        }
-    }
-}
-```
 ````
-## Shadow Casting
 
-Spot and omni lights can cast shadows. The engine supports two shadow systems:
+---
 
-### Veil Voxel Occlusion (block-based, built-in)
+## Shadow occlusion
 
-Set `occluded` to `true` on an OmniLight3D or SpotLight3D to enable Veil's voxel-based shadow occlusion. This uses Minecraft's block grid and works without configuration — but only block geometry blocks light. Meshes and CSG nodes are invisible to it.
+The rendering pipeline provides two distinct systems for computing shadow occlusion from `OmniLight3D` and `SpotLight3D` sources.
 
-```json
-{
-  "type": "OmniLight3D",
-  "properties": {
-    "radius": "12",
-    "brightness": "2.0",
-    "occluded": "true"
-  }
-}
+### Voxel occlusion
+
+Setting the `occluded` property to `true` on an `OmniLight3D` or `SpotLight3D` enables Veil's native voxel-based occlusion algorithm. This system calculates light blocking strictly based on the underlying grid-based block geometry. 
+
+*Note: `MeshInstance3D`, `CSGBox`, and `Sprite3D` nodes are not registered in the voxel grid and do not cast shadows in this mode.*
+
+### Shadow maps
+
+Setting the `cast_shadows` property to `true` on a `SpotLight3D` enables standard depth-map shadow rendering. The engine allocates a shared 2048×2048 texture atlas capable of rendering up to four simultaneous shadow casters:
+*   Two near-priority casters at 1024×1024 resolution.
+*   Two far-priority casters at 512×512 resolution.
+
+In this mode, all mesh-based geometry (`MeshInstance3D`, `Sprite3D`, `CSGBox`, `CSGBlock`) correctly cast and receive shadows.
+
+```hint info Planned features
+The `cast_shadows` property is available on `OmniLight3D` nodes, but rendering is currently deferred. Omnidirectional cube shadow maps are scheduled for a future engine update.
 ```
 
-### Moud Shadow Maps (mesh + CSG, for spot lights)
+---
 
-Set `cast_shadows` to `true` on a SpotLight3D to enable shadow map rendering. The engine renders a depth map from the light's POV into a shared 2048×2048 atlas (up to 4 casters simultaneously: 2 near-priority at 1024×1024 and 2 far-priority at 512×512, auto-assigned by camera distance). Mesh, Sprite3D, CSGBox, and CSGBlock geometry all cast shadows and any of those plus PBR-shaded surfaces receive them.
+## Post-process integration
 
-```json
-{
-  "type": "SpotLight3D",
-  "properties": {
-    "angle": "30",
-    "distance": "18",
-    "brightness": "3.0",
-    "cast_shadows": "true"
-  }
-}
-```
-
-`cast_shadows` on OmniLight3D is declared but not yet rendered — cube shadow maps are planned.
-
-**Optimization — static/dynamic caching:** the engine caches the static-scene depth per tile and only redraws dynamic casters each frame. A caster counts as dynamic if it (or any ancestor) has `script`, `client_script`, `@runtime`, `@transient`, `player_controlled`, `script_controlled`, `physics_body`, a non-zero `velocity_x`, is a `CharacterBody3D` / `RigidBody3D` / `KinematicBody3D` / `PlayerAttachment` / `Particle3D` / `AnimatedSprite3D`, or has any entry in `ClientPropertyOverrides`. Everything else is static and contributes to the cache until the scene revision changes.
-
-## Volumetric Scatter (post-process)
-
-Point, spot, and directional light data is exposed to every post-process shader via uniforms:
+Scene lighting parameters are globally exposed to all `PostProcess` fragment shaders via built-in GLSL uniform arrays. This allows custom post-processing pipelines to evaluate volumetric scattering and raymarching using the active scene lights.
 
 ```glsl
-struct MoudPointLight { vec3 position; vec3 color; float brightness; float radius; };
-struct MoudDirLight   { vec3 direction; vec3 color; float brightness; };
-struct MoudSpotLight  { vec3 position; vec3 direction; vec3 color; float brightness; float angle; float distance; };
+struct PointLight { vec3 position; vec3 color; float brightness; float radius; };
+struct DirLight   { vec3 direction; vec3 color; float brightness; };
+struct SpotLight  { vec3 position; vec3 direction; vec3 color; float brightness; float angle; float distance; };
 
 uniform int NumPointLights;
-uniform MoudPointLight PointLights[16];
+uniform PointLight PointLights[16];
 uniform int NumDirLights;
-uniform MoudDirLight DirLights[4];
+uniform DirLight DirLights[4];
 uniform int NumSpotLights;
-uniform MoudSpotLight SpotLights[8];
+uniform SpotLight SpotLights[8];
 
 uniform mat4 moud_viewProj;
 uniform mat4 moud_invViewProj;
 uniform vec3 moud_cameraPos;
-```
-
-With these, a post-process shader can raymarch the view ray and accumulate in-scattering per light. The bundled example `volumetric.moudshader` does this with Henyey-Greenstein phase scattering and cone gating for spot lights. Register it from script:
-
-```lua
-PostProcess:registerShaderPriority("volumetric", "res://shaders/volumetric.moudshader", 40)
-PostProcess:setUniform1("volumetric", "density", 0.08)
-PostProcess:setUniform1("volumetric", "scatterAnisotropy", 0.55)
-PostProcess:setUniform1("volumetric", "stepCount", 48.0)
-PostProcess:setUniform1("volumetric", "maxDistance", 64.0)
 ```

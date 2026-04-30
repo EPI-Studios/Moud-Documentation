@@ -463,7 +463,7 @@ public final class ParticleField extends NodeScript {
 
 ## Minecraft HUD Suppression
 
-Client scripts can hide all or part of Minecraft's built-in HUD so their own UI has the screen to itself. Toggles are independent — hiding the crosshair does not affect the hotbar. All methods live on the global `render` API.
+Client scripts can hide all or part of Minecraft's built-in HUD so their own UI has the screen to itself. Toggles are independent - hiding the crosshair does not affect the hotbar. All methods live on the global `render` API.
 
 ### Whole-HUD toggles
 

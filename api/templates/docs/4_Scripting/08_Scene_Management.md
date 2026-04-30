@@ -76,7 +76,9 @@ public final class MainMenu extends NodeScript {
 
 `instantiate<T>(path: string, parent: Node | long)`
 
-Instantiates an external `.moud.scene` file as a child hierarchy beneath the designated `parent` node. Returns a typed reference (or numerical node ID) to the root node of the allocated subgraph. 
+Instantiates an external `.moud.scene` file as a child hierarchy beneath the designated `parent` node. Returns a typed reference (or numerical node ID) to the root node of the allocated subgraph.
+
+The `path` is resolved through the project root by `ProjectService.resolveProjectPath`. It must be a full path including the `.moud.scene` extension, either as a relative project path (`"scenes/enemy.moud.scene"`) or as a `res://` URI (`"res://scenes/enemy.moud.scene"`). A bare scene id like `"enemy"` will fail because the resolver does not append an extension.
 
 ````tabs
 --- tab: TypeScript

@@ -2,8 +2,6 @@
 
 Understanding how Moud is structured will help you write better games, diagnose problems faster, and design around the engine's actual constraints rather than fighting it.
 
-Understand how Moud works will help you write better games and design around the engine's actual constraints rather than fighting it.
-
 ---
 
 ## The Two Sides of Moud
@@ -40,13 +38,51 @@ The server is configured entirely via environment variables:
 
 ## The Fabric Client
 
-### Key Editor Keybindings
+### Editor keybindings
+
+The editor exposes a full set of standard hotkeys in addition to the engine-specific function keys. All shortcuts apply when the editor overlay is open and focused; when it is closed the F-keys still toggle modes.
+
+**Engine modes**
 
 | Key | Action |
 |---|---|
-| **F8** | Toggle the editor overlay |
 | **F7** | Toggle play-in-viewport mode |
+| **F8** | Toggle the editor overlay |
 | **F9** | Toggle collision debug overlay |
+
+**File operations**
+
+| Shortcut | Action |
+|---|---|
+| **Ctrl + S** | Save the active scene to disk |
+| **Ctrl + P** | Open the quick search palette (jump to a node, asset, or command) |
+
+**Edit / undo**
+
+| Shortcut | Action |
+|---|---|
+| **Ctrl + Z** | Undo the last scene mutation |
+| **Ctrl + Y** | Redo |
+| **Ctrl + Shift + Z** | Redo (alternate binding) |
+
+**Scene tree manipulation**
+
+| Shortcut | Action |
+|---|---|
+| **Ctrl + C** | Copy the selected node (and its subtree) |
+| **Ctrl + X** | Cut the selected node |
+| **Ctrl + V** | Paste at the current selection |
+| **Ctrl + D** | Duplicate the selected node in place |
+| **Ctrl + Shift + D** | Duplicate with a small snap offset, useful for laying out grid-aligned copies |
+| **Delete** | Free the selected node |
+
+**Transform nudging** (with a node selected in the viewport)
+
+| Shortcut | Action |
+|---|---|
+| **Arrow keys** | Nudge the node by one snap unit on the active axis |
+| **Shift + Arrow keys** | Nudge by ten snap units |
+| **[** / **]** | Move the node up/down in its parent's child list (changes Z-order for UI, draw order for 2D) |
 
 ---
 
@@ -96,3 +132,27 @@ Client scripts are written in **Luau** and receive a different API surface from 
 ```hint info Client Scripts Cannot Modify Authoritative State
 Client scripts **cannot** modify authoritative game state. They cannot spawn nodes, change server-owned properties, or send network messages. The server corrects any prediction divergence via its normal sync packets. See [Client Scripts](/4_Scripting/10_Client_Scripts) for the full reference.
 ```
+
+---
+
+## How Players Get Your Game
+
+Moud's distribution model differs from most engines. **Players never download your game files.** They install only the Moud Fabric mod once, and from then on they connect to any Moud server the same way they would join a vanilla Minecraft server.
+
+When a player joins:
+
+1. The Fabric client opens a session against the server's port (default `25565`).
+2. The server streams the active scene's nodes, materials, scripts, and asset payloads down the `ASSETS` lane on demand. The client caches them locally so subsequent joins to the same server skip the transfer.
+3. Scripts run server-authoritatively; client scripts ship as part of the same asset stream and execute locally.
+4. Switching scenes mid-session streams only the diff.
+
+This means a server owner ships nothing to players directly: no installers, no manual updates, no per-game launcher entries. Pushing a new scene file or asset to the server makes it available to every player on their next reload, with hot-reload also covering live editor sessions in `MOUD_MODE=dev`.
+
+The same property holds for hosted multiplayer experiences: a Moud server can host many `places` (scenes), each with its own gameplay. Players match into instances of those places via the multi-instance runtime described in [Multi-Instance Runtime](/4_Scripting/18_Multi_Instance), with the matchmaker spawning new instances on demand. From the player's perspective there is one entry point: the server address.
+
+What this means for distributors:
+
+- **You publish a server, not a game.** Update the server, every connected player gets the new content.
+- **No platform store dependency.** Discord links, web pages, or [`moud://` deep links](/3_Features/16_Deep_Linking) are all valid entry points.
+- **Asset budgeting matters.** First-time joiners pay the asset stream cost. Use the cache by reusing materials and meshes across scenes; very large textures are the most common cause of slow first-joins.
+
