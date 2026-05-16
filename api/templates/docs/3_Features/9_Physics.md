@@ -4,18 +4,6 @@ Moud has a built-in physics engine (Rapier3D, native via FFM) that handles rigid
 
 The server runs a fixed-step `PhysicsClock` and emits per-tick rigid-body snapshots to clients using small-3 quaternion compression. Clients render dynamic bodies through a `BodyInterpolator` with a 50ms render delay so motion stays smooth even when ticks arrive irregularly.
 
-```hint info Hybrid physics for vanilla Minecraft players
-The vanilla Minecraft player walking around the world is **not** a `CharacterBody3D` and is not driven by the server-side Rapier simulation. It is the regular Minecraft entity, with its movement integrated by the client.
-
-The Moud client mod runs a parallel client-side Rapier static world (`ClientStaticWorld`) that holds every static collider the server has: chunk-section greedy-meshed terrain, custom-shape blocks, procedural meshes, CSG geometry, and `.bbmodel`-backed static bodies. A mixin on the vanilla player's `move()` (`EntityObbCollisionMixin`) sweeps the player's capsule against this client world before each step via `PlayerColliderBridge`, so vanilla players seamlessly walk on, bump into, and slide against any custom Moud geometry without the developer wiring anything up.
-
-Implications:
-
-- Vanilla players collide with **server-baked** geometry (chunk terrain, procedural meshes, CSG, `.bbmodel` static bodies, anvil worlds). Edits replicate to clients and update collision automatically through the `ChunkColliderManager` baker, which coalesces section edits per tick and atomically swaps trimeshes.
-- Dynamic `RigidBody3D` instances are **visual-only on clients** — their poses arrive in server snapshots and the interpolator drives kinematic mirrors that the player capsule can sweep against. The server is the source of truth for any pushable crate, projectile, or ragdoll.
-- Custom `CharacterBody3D` nodes that you script (see [Physics API > Character bodies](/4_Scripting/06_Physics#character-bodies)) run on the server through Rapier's kinematic character controller (autostep up to half a block, slope handling at ~46°, ground-snap within half a block) and sync to clients normally.
-- Tick rates differ: server Rapier ticks at the configured fixed step (20 Hz by default), the client static world is queried per render frame. The client is deterministic against the server's collision state because it loads the same baked geometry over the wire.
-- Replicated transforms (server-driven node positions, rotations, scales) are smoothed on the client by default. See [Motion Smoothing](/3_Features/16_Motion_Smoothing) for per-node `@interp_mode` / `@interp_lag_ms` overrides, the tween primitive, and the visual offset registry for cosmetic-only animation.
 ```
 
 
